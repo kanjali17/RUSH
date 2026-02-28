@@ -1,43 +1,40 @@
-# RUSH — Campus Food Pop-Up Discovery
+# RUSH: The Future of Campus Pop-Up Dining
 
-A premium mobile-first web app for discovering underground campus food pop-ups. Built with React + Vite, featuring a dark UI with amber/gold accents.
+RUSH is an immersive, high-fidelity mobile and web platform designed to connect campus creators with food seekers in real-time. Built with a premium, futuristic aesthetic, RUSH transforms discoverability on campus through dynamic map overlays, real-time "Rumor" feeds, and cinematic user experiences.
 
-## 🚀 Local Development
+## Project Structure
 
-### Prerequisites
-- [Node.js](https://nodejs.org/) (v18 or higher)
-- npm (comes with Node.js)
+- **/src**: The original React-based web application for desktop discovery.
+- **/mobile**: The high-fidelity Expo/React Native mobile application featuring cinematic animations (`moti`) and premium UI components.
 
-### Setup
+## Mobile App Features (Phase 5 High-Fidelity)
 
-```bash
-# 1. Clone the repo
-git clone https://github.com/kanjali17/RUSH.git
-cd RUSH
+- **Cinematic Launch**: An immersive typewriter-driven entrance screen that sets the "Underground" vibe.
+- **Discover Hub**: Google Maps integration with custom dark-mode styling and "Live Quest" markers.
+- **Following Feed**: High-contrast "Rumor" cards to track your favorite creators.
+- **RSVP Quest Log**: Manage your food drops with real-time "Trending" statistics and popularity charts.
+- **Flyer Creator**: A professional-grade creator flow for launching campus pop-ups with custom menus and pricing.
+- **Elite Profiles**: Premium user identities with status-driven branding.
 
-# 2. Install dependencies
-npm install
+## Technology Stack
 
-# 3. Start the dev server
-npm run dev
-```
+- **Mobile**: Expo, React Native, `expo-router`, `moti`, `react-native-reanimated`, `lucide-react-native`.
+- **Web**: React, Vite, CSS (Glassmorphism).
+- **Styling**: Cinematic dark themes with amber accents and deep glassmorphism.
 
-The app will be running at **http://localhost:5173/**
+## Getting Started
 
-### Demo Login
-- **Email:** `alex@utexas.edu`
-- **Password:** `password123`
+### Mobile App
+1. Navigate to `mobile/`.
+2. Run `npm install`.
+3. Start the app with `npx expo start`.
 
-## 🛠 Tech Stack
-- **React 19** + React Router
-- **Vite** (dev server + build)
-- **Leaflet** (interactive dark map)
-- **Lucide React** (icons)
-- Vanilla CSS design system
+### Web App
+1. Install dependencies: `npm install`.
+2. Start the dev server: `npm run dev`.
 
-## 📦 Build for Production
+## Implementation History
+This project has undergone a complete high-fidelity redesign to transition from a basic utility ("PopUpFinder") to a premium campus brand ("RUSH").
 
-```bash
-npm run build
-npm run preview
-```
+---
+Built with ⚡️ by the RUSH Team.

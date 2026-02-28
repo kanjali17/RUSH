@@ -24,7 +24,7 @@ export default function RsvpModal({ popup, onClose }) {
 
     return (
         <div className="modal-overlay" onClick={onClose}>
-            <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
                 <div className="modal-handle" />
 
                 {confirmed || existingRsvp ? (

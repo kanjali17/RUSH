@@ -25,33 +25,44 @@ const initialState = {
 function appReducer(state, action) {
     switch (action.type) {
         case 'LOGIN': {
-            const { email, password } = action.payload;
+            const { email, password, role } = action.payload;
             const existing = state.users.find(
                 (u) => u.email === email && u.password === password
             );
             if (existing) {
                 return { ...state, currentUser: existing };
             }
-            return state; // Login failed
-        }
-
-        case 'REGISTER': {
-            const { email, password, display_name, interests } = action.payload;
             const newUser = {
-                id: `user-${Date.now()}`,
+                id: 'user-' + Date.now(),
                 email,
                 password,
+                role,
                 campus_id: null,
-                display_name,
-                bio: '',
-                interests: interests || [],
+                display_name: email.split('@')[0],
                 following: [],
-                creator_id: null, // Can create one later
             };
+            if (role === 'creator') {
+                newUser.creator_id = 'creator-' + Date.now();
+            }
+            const newCreators =
+                role === 'creator'
+                    ? [
+                        ...state.creators,
+                        {
+                            id: newUser.creator_id,
+                            user_id: newUser.id,
+                            name: newUser.display_name + "'s Kitchen",
+                            bio: 'New creator on campus!',
+                            avatar: '👨‍🍳',
+                            followers: [],
+                        },
+                    ]
+                    : state.creators;
             return {
                 ...state,
                 currentUser: newUser,
                 users: [...state.users, newUser],
+                creators: newCreators,
             };
         }
 
@@ -64,58 +75,14 @@ function appReducer(state, action) {
                 currentUser: { ...state.currentUser, campus_id: action.payload },
             };
 
-        case 'UPDATE_PROFILE': {
-            const updates = action.payload;
-            const updatedUser = { ...state.currentUser, ...updates };
-            return {
-                ...state,
-                currentUser: updatedUser,
-                users: state.users.map((u) =>
-                    u.id === updatedUser.id ? updatedUser : u
-                ),
-            };
-        }
-
-        case 'BECOME_CREATOR': {
-            const { name, bio } = action.payload;
-            const creatorId = `creator-${Date.now()}`;
-            const newCreator = {
-                id: creatorId,
-                user_id: state.currentUser.id,
-                name,
-                bio,
-                avatar: '👨‍🍳',
-                followers: [],
-            };
-            const updatedUser = { ...state.currentUser, creator_id: creatorId };
-            return {
-                ...state,
-                currentUser: updatedUser,
-                users: state.users.map((u) =>
-                    u.id === updatedUser.id ? updatedUser : u
-                ),
-                creators: [...state.creators, newCreator],
-            };
-        }
-
         case 'CREATE_POPUP': {
             const popup = {
                 ...action.payload,
-                id: `popup-${Date.now()}`,
+                id: 'popup-' + Date.now(),
                 attendance: 0,
                 status: 'upcoming',
             };
             return { ...state, popups: [...state.popups, popup] };
-        }
-
-        case 'EDIT_POPUP': {
-            const { popup_id, updates } = action.payload;
-            return {
-                ...state,
-                popups: state.popups.map((p) =>
-                    p.id === popup_id ? { ...p, ...updates } : p
-                ),
-            };
         }
 
         case 'RSVP': {
@@ -133,7 +100,7 @@ function appReducer(state, action) {
                 rsvps: [
                     ...state.rsvps,
                     {
-                        id: `rsvp-${Date.now()}`,
+                        id: 'rsvp-' + Date.now(),
                         user_id: state.currentUser.id,
                         popup_id,
                         status,
@@ -167,7 +134,7 @@ function appReducer(state, action) {
         case 'ADD_REVIEW': {
             const review = {
                 ...action.payload,
-                id: `review-${Date.now()}`,
+                id: 'review-' + Date.now(),
                 user_id: state.currentUser.id,
             };
             return { ...state, reviews: [...state.reviews, review] };
@@ -176,7 +143,7 @@ function appReducer(state, action) {
         case 'ADD_REPORT': {
             const report = {
                 ...action.payload,
-                id: `report-${Date.now()}`,
+                id: 'report-' + Date.now(),
                 user_id: state.currentUser.id,
             };
             return { ...state, reports: [...state.reports, report] };
@@ -201,13 +168,9 @@ function appReducer(state, action) {
                 return c;
             });
 
-            const updatedUser = { ...state.currentUser, following };
             return {
                 ...state,
-                currentUser: updatedUser,
-                users: state.users.map((u) =>
-                    u.id === updatedUser.id ? updatedUser : u
-                ),
+                currentUser: { ...state.currentUser, following },
                 creators: updatedCreators,
             };
         }
@@ -222,6 +185,28 @@ function appReducer(state, action) {
             };
         }
 
+        case 'UPDATE_PROFILE': {
+            const { display_name, bio, avatar, interests, quiz_answers, profile_photo, creator_name, creator_bio } = action.payload;
+            const updatedUser = {
+                ...state.currentUser,
+                display_name: display_name || state.currentUser.display_name,
+                bio: bio !== undefined ? bio : state.currentUser.bio,
+                avatar: avatar || state.currentUser.avatar,
+                interests: interests || state.currentUser.interests || [],
+                quiz_answers: quiz_answers || state.currentUser.quiz_answers || {},
+                profile_photo: profile_photo !== undefined ? profile_photo : state.currentUser.profile_photo,
+            };
+            let updatedCreators = state.creators;
+            if (state.currentUser.role === 'creator' && state.currentUser.creator_id) {
+                updatedCreators = state.creators.map((c) =>
+                    c.id === state.currentUser.creator_id
+                        ? { ...c, name: creator_name || c.name, bio: creator_bio !== undefined ? creator_bio : c.bio }
+                        : c
+                );
+            }
+            return { ...state, currentUser: updatedUser, creators: updatedCreators };
+        }
+
         default:
             return state;
     }
@@ -231,12 +216,8 @@ export function AppProvider({ children }) {
     const [state, dispatch] = useReducer(appReducer, initialState);
 
     const login = useCallback(
-        (email, password) =>
-            dispatch({ type: 'LOGIN', payload: { email, password } }),
-        []
-    );
-    const register = useCallback(
-        (data) => dispatch({ type: 'REGISTER', payload: data }),
+        (email, password, role) =>
+            dispatch({ type: 'LOGIN', payload: { email, password, role } }),
         []
     );
     const logout = useCallback(() => dispatch({ type: 'LOGOUT' }), []);
@@ -244,22 +225,8 @@ export function AppProvider({ children }) {
         (campusId) => dispatch({ type: 'SELECT_CAMPUS', payload: campusId }),
         []
     );
-    const updateProfile = useCallback(
-        (updates) => dispatch({ type: 'UPDATE_PROFILE', payload: updates }),
-        []
-    );
-    const becomeCreator = useCallback(
-        (name, bio) =>
-            dispatch({ type: 'BECOME_CREATOR', payload: { name, bio } }),
-        []
-    );
     const createPopup = useCallback(
         (popup) => dispatch({ type: 'CREATE_POPUP', payload: popup }),
-        []
-    );
-    const editPopup = useCallback(
-        (popup_id, updates) =>
-            dispatch({ type: 'EDIT_POPUP', payload: { popup_id, updates } }),
         []
     );
     const rsvp = useCallback(
@@ -294,28 +261,14 @@ export function AppProvider({ children }) {
             dispatch({ type: 'SET_ATTENDANCE', payload: { popup_id, count } }),
         []
     );
+    const updateProfile = useCallback(
+        (profileData) => dispatch({ type: 'UPDATE_PROFILE', payload: profileData }),
+        []
+    );
 
-    // Computed helpers
     const getCreator = useCallback(
         (creatorId) => state.creators.find((c) => c.id === creatorId),
         [state.creators]
-    );
-    const getCreatorByUserId = useCallback(
-        (userId) => state.creators.find((c) => c.user_id === userId),
-        [state.creators]
-    );
-    const getMyCreator = useCallback(
-        () => state.creators.find((c) => c.id === state.currentUser?.creator_id),
-        [state.creators, state.currentUser]
-    );
-    const isMyPopup = useCallback(
-        (popup) => {
-            const myCreator = state.creators.find(
-                (c) => c.id === state.currentUser?.creator_id
-            );
-            return myCreator && popup.creator_id === myCreator.id;
-        },
-        [state.creators, state.currentUser]
     );
     const getPopupRsvps = useCallback(
         (popupId) => state.rsvps.filter((r) => r.popup_id === popupId),
@@ -357,13 +310,9 @@ export function AppProvider({ children }) {
     const value = {
         ...state,
         login,
-        register,
         logout,
         selectCampus,
-        updateProfile,
-        becomeCreator,
         createPopup,
-        editPopup,
         rsvp,
         toggleReminder,
         cancelRsvp,
@@ -371,10 +320,8 @@ export function AppProvider({ children }) {
         addReport,
         followCreator,
         setAttendance,
+        updateProfile,
         getCreator,
-        getCreatorByUserId,
-        getMyCreator,
-        isMyPopup,
         getPopupRsvps,
         getPopupReviews,
         getUserRsvp,

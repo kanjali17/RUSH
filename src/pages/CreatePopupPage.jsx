@@ -1,157 +1,152 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { foodTypeOptions } from '../data/seedData';
-import { ArrowLeft, Upload } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, MapPin } from 'lucide-react';
 
 export default function CreatePopupPage() {
-    const { createPopup, currentUser, campuses, getMyCreator } = useApp();
     const navigate = useNavigate();
-    const creator = getMyCreator();
+    const { createPopup, currentUser, campuses } = useApp();
     const campus = campuses.find((c) => c.id === currentUser?.campus_id);
 
     const [form, setForm] = useState({
-        title: '', food_type: '', dietary_tags: [],
-        start_date: '', end_date: '', start_time: '', end_time: '',
-        location_name: '', address: '', menu: '', prices: '',
+        title: '', food_type: 'Mexican', start_date: '', end_date: '',
+        start_time: '', end_time: '', location_name: '', address: '',
         until_sold_out: false,
     });
+    const [dietaryTags, setDietaryTags] = useState([]);
+    const [menuItems, setMenuItems] = useState([{ name: '', price: '' }]);
+    const [error, setError] = useState('');
 
-    const dietaryOptions = ['Vegan', 'Vegetarian', 'Gluten-Free', 'Halal', 'Organic'];
+    const dietaryOptions = ['Vegan', 'Vegetarian Options', 'Gluten-Free', 'Halal Options', 'Organic', 'Nut-Free'];
 
-    const toggleDietary = (tag) => {
-        setForm((f) => ({
-            ...f,
-            dietary_tags: f.dietary_tags.includes(tag)
-                ? f.dietary_tags.filter((t) => t !== tag)
-                : [...f.dietary_tags, tag],
-        }));
+    const toggleTag = (tag) => {
+        setDietaryTags((prev) => prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]);
     };
 
-    if (!creator) {
-        return (
-            <div className="page" style={{ justifyContent: 'center', alignItems: 'center', gap: 'var(--sp-lg)' }}>
-                <p style={{ color: 'var(--c-text-secondary)' }}>You need a creator profile first</p>
-                <button className="btn btn-primary" onClick={() => navigate('/profile')}>
-                    Set Up Creator Profile
-                </button>
-            </div>
-        );
-    }
-
-    const handlePublish = (e) => {
+    const handleSubmit = (e) => {
         e.preventDefault();
-        if (!form.title || !form.start_date || !form.start_time || !form.location_name) {
-            alert('Please fill in required fields');
+        if (!form.title || !form.start_date || !form.start_time || !form.end_time || !form.location_name) {
+            setError('Please fill in all required fields');
             return;
         }
-        const menuItems = form.menu.split(',').map((s) => s.trim()).filter(Boolean);
-        const priceItems = form.prices.split(',').map((s) => s.trim()).filter(Boolean);
-
         createPopup({
-            creator_id: creator.id,
+            ...form,
+            end_date: form.end_date || form.start_date,
+            creator_id: currentUser.creator_id,
             campus_id: currentUser.campus_id,
-            title: form.title, food_type: form.food_type,
-            dietary_tags: form.dietary_tags,
-            start_date: form.start_date, end_date: form.end_date || form.start_date,
-            start_time: form.start_time, end_time: form.end_time || '',
-            location_name: form.location_name, address: form.address,
-            zip: campus?.zip || '',
-            lat: campus?.lat + (Math.random() - 0.5) * 0.005,
-            lng: campus?.lng + (Math.random() - 0.5) * 0.005,
-            menu: menuItems, prices: priceItems,
-            photos: [], until_sold_out: form.until_sold_out,
+            dietary_tags: dietaryTags,
+            menu: menuItems.filter((m) => m.name).map((m) => m.name),
+            prices: menuItems.filter((m) => m.name).map((m) => m.price || 'Market'),
+            lat: campus ? campus.lat + (Math.random() - 0.5) * 0.006 : 30.285,
+            lng: campus ? campus.lng + (Math.random() - 0.5) * 0.006 : -97.735,
+            photos: [],
         });
         navigate('/creator');
     };
 
     return (
-        <div className="page page-compact" style={{ gap: 'var(--sp-lg)' }}>
-            <div className="top-bar">
-                <button className="btn btn-icon btn-ghost" onClick={() => navigate(-1)}>
-                    <ArrowLeft size={22} />
-                </button>
-                <div style={{ flex: 1 }}>
-                    <p className="label-uppercase">New</p>
-                    <h1 className="heading-display" style={{ fontSize: 'var(--fs-xl)' }}>Create Pop-Up</h1>
-                </div>
+        <div className="page" style={{ gap: 'var(--sp-lg)' }}>
+            <div className="flex items-center gap-md">
+                <button className="btn btn-icon btn-ghost" onClick={() => navigate(-1)}><ArrowLeft size={22} /></button>
+                <h1 style={{ fontSize: 'var(--fs-xl)', fontWeight: 'var(--fw-bold)' }}>Create Popup</h1>
             </div>
-
-            <form onSubmit={handlePublish} className="flex flex-col gap-lg">
+            <form onSubmit={handleSubmit} className="flex flex-col gap-lg">
                 <div className="input-group">
                     <label className="input-label">Title *</label>
-                    <input className="input" placeholder="e.g. Taco Tuesday Fiesta 🌮" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+                    <input className="input" placeholder="e.g. Taco Tuesday Fiesta" value={form.title}
+                        onChange={(e) => setForm({ ...form, title: e.target.value })} />
                 </div>
-
                 <div className="input-group">
                     <label className="input-label">Food Type</label>
-                    <select className="select" value={form.food_type} onChange={(e) => setForm({ ...form, food_type: e.target.value })}>
-                        <option value="">Select type</option>
-                        {foodTypeOptions.map((type) => (<option key={type} value={type}>{type}</option>))}
+                    <select className="select" value={form.food_type}
+                        onChange={(e) => setForm({ ...form, food_type: e.target.value })}>
+                        <option value="Mexican">Mexican</option><option value="BBQ">BBQ</option>
+                        <option value="Healthy">Healthy</option><option value="Asian">Asian</option>
+                        <option value="Italian">Italian</option><option value="Other">Other</option>
                     </select>
                 </div>
-
                 <div className="input-group">
                     <label className="input-label">Dietary Tags</label>
-                    <div className="flex gap-sm flex-wrap">
+                    <div className="flex gap-sm" style={{ flexWrap: 'wrap' }}>
                         {dietaryOptions.map((tag) => (
-                            <button key={tag} type="button" className={`chip ${form.dietary_tags.includes(tag) ? 'chip-active' : 'chip-default'}`} onClick={() => toggleDietary(tag)}>
+                            <button key={tag} type="button" className={'tag' + (dietaryTags.includes(tag) ? '' : '')}
+                                style={{
+                                    cursor: 'pointer',
+                                    background: dietaryTags.includes(tag) ? 'rgba(255,107,53,0.2)' : 'var(--c-surface)',
+                                    borderColor: dietaryTags.includes(tag) ? 'var(--c-accent)' : 'var(--c-border)',
+                                    color: dietaryTags.includes(tag) ? 'var(--c-accent)' : 'var(--c-text-secondary)',
+                                }}
+                                onClick={() => toggleTag(tag)}>
                                 {tag}
                             </button>
                         ))}
                     </div>
                 </div>
-
                 <div className="flex gap-md">
                     <div className="input-group" style={{ flex: 1 }}>
                         <label className="input-label">Start Date *</label>
-                        <input type="date" className="input" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} />
+                        <input type="date" className="input" value={form.start_date}
+                            onChange={(e) => setForm({ ...form, start_date: e.target.value })} />
                     </div>
                     <div className="input-group" style={{ flex: 1 }}>
                         <label className="input-label">End Date</label>
-                        <input type="date" className="input" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} />
+                        <input type="date" className="input" value={form.end_date}
+                            onChange={(e) => setForm({ ...form, end_date: e.target.value })} />
                     </div>
                 </div>
-
                 <div className="flex gap-md">
                     <div className="input-group" style={{ flex: 1 }}>
                         <label className="input-label">Start Time *</label>
-                        <input type="time" className="input" value={form.start_time} onChange={(e) => setForm({ ...form, start_time: e.target.value })} />
+                        <input type="time" className="input" value={form.start_time}
+                            onChange={(e) => setForm({ ...form, start_time: e.target.value })} />
                     </div>
                     <div className="input-group" style={{ flex: 1 }}>
-                        <label className="input-label">End Time</label>
-                        <input type="time" className="input" value={form.end_time} onChange={(e) => setForm({ ...form, end_time: e.target.value })} />
+                        <label className="input-label">End Time *</label>
+                        <input type="time" className="input" value={form.end_time}
+                            onChange={(e) => setForm({ ...form, end_time: e.target.value })} />
                     </div>
                 </div>
-
                 <div className="input-group">
-                    <label className="input-label">Location Name *</label>
-                    <input className="input" placeholder="e.g. Gregory Gym Plaza" value={form.location_name} onChange={(e) => setForm({ ...form, location_name: e.target.value })} />
+                    <label className="input-label"><MapPin size={14} style={{ display: 'inline' }} /> Location Name *</label>
+                    <input className="input" placeholder="e.g. Gregory Gym Plaza" value={form.location_name}
+                        onChange={(e) => setForm({ ...form, location_name: e.target.value })} />
                 </div>
-
                 <div className="input-group">
                     <label className="input-label">Address</label>
-                    <input className="input" placeholder="Full address" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+                    <input className="input" placeholder="e.g. 2101 Speedway, Austin TX" value={form.address}
+                        onChange={(e) => setForm({ ...form, address: e.target.value })} />
                 </div>
-
-                <div className="input-group">
-                    <label className="input-label">Menu Items (comma-separated)</label>
-                    <input className="input" placeholder="Tacos, Elote, Horchata" value={form.menu} onChange={(e) => setForm({ ...form, menu: e.target.value })} />
+                <div>
+                    <div className="flex items-center justify-between" style={{ marginBottom: 'var(--sp-md)' }}>
+                        <label className="input-label">Menu Items</label>
+                        <button type="button" className="btn btn-ghost btn-sm"
+                            onClick={() => setMenuItems([...menuItems, { name: '', price: '' }])}>
+                            <Plus size={14} />Add
+                        </button>
+                    </div>
+                    <div className="flex flex-col gap-md">
+                        {menuItems.map((item, i) => (
+                            <div key={i} className="flex gap-sm items-center">
+                                <input className="input" placeholder="Item name" value={item.name} style={{ flex: 2 }}
+                                    onChange={(e) => { const n = [...menuItems]; n[i].name = e.target.value; setMenuItems(n); }} />
+                                <input className="input" placeholder="Price" value={item.price} style={{ flex: 1 }}
+                                    onChange={(e) => { const n = [...menuItems]; n[i].price = e.target.value; setMenuItems(n); }} />
+                                {menuItems.length > 1 && (
+                                    <button type="button" className="btn btn-icon btn-ghost" onClick={() => setMenuItems(menuItems.filter((_, idx) => idx !== i))}>
+                                        <Trash2 size={16} color="var(--c-error)" />
+                                    </button>
+                                )}
+                            </div>
+                        ))}
+                    </div>
                 </div>
-
-                <div className="input-group">
-                    <label className="input-label">Prices (comma-separated)</label>
-                    <input className="input" placeholder="$3, $4, $2" value={form.prices} onChange={(e) => setForm({ ...form, prices: e.target.value })} />
-                </div>
-
-                <div className="flex items-center justify-between" style={{ background: 'var(--c-surface)', padding: 'var(--sp-base)', borderRadius: 'var(--r-lg)' }}>
-                    <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 'var(--fw-medium)' }}>Until Sold Out</span>
-                    <div className={`toggle ${form.until_sold_out ? 'active' : ''}`} onClick={() => setForm({ ...form, until_sold_out: !form.until_sold_out })} />
-                </div>
-
-                <button type="submit" className="btn btn-primary btn-full btn-lg">
-                    <Upload size={18} /> Publish
-                </button>
+                <label className="flex items-center gap-md" style={{ cursor: 'pointer' }}>
+                    <div className={'toggle' + (form.until_sold_out ? ' active' : '')}
+                        onClick={() => setForm({ ...form, until_sold_out: !form.until_sold_out })} />
+                    <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--c-text-secondary)' }}>Serving until sold out</span>
+                </label>
+                {error && <p className="error-text">{error}</p>}
+                <button type="submit" className="btn btn-primary btn-full btn-lg">Publish Popup</button>
             </form>
         </div>
     );

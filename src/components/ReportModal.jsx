@@ -21,7 +21,7 @@ export default function ReportModal({ popup, onClose }) {
 
     return (
         <div className="modal-overlay" onClick={onClose}>
-            <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
                 <div className="modal-handle" />
 
                 {submitted ? (
@@ -62,7 +62,7 @@ export default function ReportModal({ popup, onClose }) {
                                         cursor: 'pointer',
                                         borderColor:
                                             reason === r.value
-                                                ? 'var(--c-amber)'
+                                                ? 'var(--c-accent)'
                                                 : 'var(--c-border)',
                                         textAlign: 'left',
                                     }}

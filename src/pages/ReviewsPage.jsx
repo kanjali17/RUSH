@@ -31,25 +31,24 @@ export default function ReviewsPage() {
     }
 
     return (
-        <div className="page page-compact" style={{ gap: 'var(--sp-lg)' }}>
+        <div className="page" style={{ gap: 'var(--sp-lg)' }}>
             {/* Header */}
-            <div className="top-bar">
+            <div className="flex items-center gap-md">
                 <button className="btn btn-icon btn-ghost" onClick={() => navigate(-1)}>
                     <ArrowLeft size={22} />
                 </button>
-                <div style={{ flex: 1 }}>
-                    <p className="label-uppercase">Feedback</p>
-                    <h1 className="heading-display" style={{ fontSize: 'var(--fs-xl)' }}>
+                <div>
+                    <h1 style={{ fontSize: 'var(--fs-xl)', fontWeight: 'var(--fw-bold)' }}>
                         Reviews
                     </h1>
-                    <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--c-text-muted)' }}>
+                    <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--c-text-secondary)' }}>
                         {popup.title}
                     </p>
                 </div>
             </div>
 
-            {/* Write Review — any user can review */}
-            {currentUser && (
+            {/* Write Review */}
+            {currentUser?.role !== 'creator' && (
                 <div className="card flex flex-col gap-md">
                     <p style={{ fontWeight: 'var(--fw-semibold)', fontSize: 'var(--fs-sm)' }}>
                         Leave a Review

@@ -1,48 +1,135 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { useApp } from '../context/AppContext';
-import { SlidersHorizontal, Clock, Plus, User, Zap } from 'lucide-react';
+import { SlidersHorizontal, Clock, LocateFixed, Search, X, Loader } from 'lucide-react';
 import FilterDrawer from '../components/FilterDrawer';
 import BottomNav from '../components/BottomNav';
 import 'leaflet/dist/leaflet.css';
 
-function createPinIcon(label) {
+function createPinIcon(title) {
     return L.divIcon({
         className: '',
-        html: `<div class="custom-pin">${label}</div>`,
+        html: '<div class="custom-pin">' + title + '</div>',
         iconSize: [0, 0],
         iconAnchor: [0, 30],
         popupAnchor: [0, -35],
     });
 }
 
-const QUICK_FILTERS = [
-    { id: 'fast', label: 'Fast Track', icon: '⚡' },
-    { id: 'late', label: 'Late Night', icon: null },
-    { id: 'hidden', label: 'Hidden Gems', icon: null },
-    { id: 'healthy', label: 'Healthy', icon: null },
-    { id: 'desserts', label: 'Desserts', icon: null },
-];
+const userPinIcon = L.divIcon({
+    className: '',
+    html: `<div style="
+        width: 18px; height: 18px; border-radius: 50%;
+        background: #4A90FF; border: 3px solid #fff;
+        box-shadow: 0 0 12px rgba(74,144,255,0.6), 0 0 24px rgba(74,144,255,0.3);
+        animation: pulse 2s ease-in-out infinite;
+    "></div>`,
+    iconSize: [18, 18],
+    iconAnchor: [9, 9],
+});
+
+const searchPinIcon = L.divIcon({
+    className: '',
+    html: `<div style="
+        width: 22px; height: 22px; border-radius: 50%;
+        background: #FF4A6E; border: 3px solid #fff;
+        box-shadow: 0 0 12px rgba(255,74,110,0.6), 0 0 24px rgba(255,74,110,0.3);
+    "></div>`,
+    iconSize: [22, 22],
+    iconAnchor: [11, 11],
+});
+
+function FlyToLocation({ position }) {
+    const map = useMap();
+    useEffect(() => {
+        if (position) {
+            map.flyTo(position, 16, { duration: 1.2 });
+        }
+    }, [position, map]);
+    return null;
+}
 
 export default function HomePage() {
     const { popups, currentUser, getCreator, getPopupRsvps, campuses } = useApp();
     const navigate = useNavigate();
     const [showFilter, setShowFilter] = useState(false);
-    const [activeChip, setActiveChip] = useState('fast');
-    const [filters, setFilters] = useState({
-        date: '',
-        food_type: '',
-        dietary: '',
-        zip: '',
-    });
+    const [filters, setFilters] = useState({ date: '', food_type: '', dietary: '' });
+    const [userLocation, setUserLocation] = useState(null);
+    const [locating, setLocating] = useState(false);
+    const [flyTarget, setFlyTarget] = useState(null);
+
+    // Address search state
+    const [showSearch, setShowSearch] = useState(false);
+    const [addressQuery, setAddressQuery] = useState('');
+    const [searching, setSearching] = useState(false);
+    const [searchPin, setSearchPin] = useState(null);
+    const [searchLabel, setSearchLabel] = useState('');
+    const [searchError, setSearchError] = useState('');
 
     const campus = campuses.find((c) => c.id === currentUser?.campus_id);
 
+    // Try to get user location on mount
+    useEffect(() => {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (pos) => setUserLocation([pos.coords.latitude, pos.coords.longitude]),
+                () => { },
+                { enableHighAccuracy: true, timeout: 8000 }
+            );
+        }
+    }, []);
+
+    const handleLocateMe = () => {
+        if (!navigator.geolocation) return;
+        setLocating(true);
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                const loc = [pos.coords.latitude, pos.coords.longitude];
+                setUserLocation(loc);
+                setFlyTarget(loc);
+                setLocating(false);
+            },
+            () => setLocating(false),
+            { enableHighAccuracy: true, timeout: 10000 }
+        );
+    };
+
+    const handleAddressSearch = async (e) => {
+        e.preventDefault();
+        if (!addressQuery.trim()) return;
+        setSearching(true);
+        setSearchError('');
+        try {
+            const res = await fetch(
+                `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addressQuery)}&limit=1`,
+                { headers: { 'Accept': 'application/json' } }
+            );
+            const data = await res.json();
+            if (data && data.length > 0) {
+                const loc = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+                setSearchPin(loc);
+                setSearchLabel(data[0].display_name.split(',').slice(0, 2).join(','));
+                setFlyTarget(loc);
+                setShowSearch(false);
+                setAddressQuery('');
+            } else {
+                setSearchError('Address not found. Try a different search.');
+            }
+        } catch {
+            setSearchError('Could not search. Check your connection.');
+        }
+        setSearching(false);
+    };
+
+    const clearSearchPin = () => {
+        setSearchPin(null);
+        setSearchLabel('');
+    };
+
     const todayPopups = useMemo(() => {
         let filtered = popups.filter((p) => p.campus_id === currentUser?.campus_id);
-
         if (filters.date) {
             filtered = filtered.filter((p) => p.start_date === filters.date);
         } else {
@@ -54,113 +141,137 @@ export default function HomePage() {
         if (filters.dietary) {
             filtered = filtered.filter((p) => p.dietary_tags.some((t) => t.toLowerCase().includes(filters.dietary.toLowerCase())));
         }
-        if (filters.zip) {
-            filtered = filtered.filter((p) => p.zip === filters.zip);
-        }
         return filtered;
     }, [popups, currentUser, filters]);
 
-    const featuredPopup = todayPopups[0];
-
-    const foodEmoji = (type) => {
-        const map = { Mexican: '🌮', BBQ: '🍖', Healthy: '🥗', Desserts: '🍰', Drinks: '🧃', Snacks: '🥟', Asian: '🍜', Italian: '🍝', Meals: '🍽️' };
-        return map[type] || '🍽️';
-    };
-
     return (
-        <div className="page page-with-nav page-compact" style={{ gap: 0 }}>
-            {/* Top Bar — Search + Filter + Avatar */}
+        <div className="page page-with-nav" style={{ padding: 0, gap: 0 }}>
+            {/* Top Bar */}
             <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 'var(--sp-md)',
-                padding: 'var(--sp-sm) 0 var(--sp-md)',
-                position: 'relative',
-                zIndex: 500,
+                display: 'flex', alignItems: 'center', gap: 'var(--sp-sm)',
+                padding: 'var(--sp-base) var(--sp-lg)', background: 'var(--c-bg-glass)',
+                backdropFilter: 'blur(20px)', borderBottom: '1px solid var(--c-border)',
+                position: 'relative', zIndex: 500,
             }}>
-                <div
-                    className="search-bar"
-                    style={{ flex: 1, cursor: 'pointer' }}
-                    onClick={() => navigate('/search')}
-                >
-                    <Zap size={16} color="var(--c-amber)" />
-                    <span style={{ color: 'var(--c-text-muted)', fontSize: 'var(--fs-base)' }}>
-                        Find your next meal...
-                    </span>
-                </div>
-                <button
-                    className="btn btn-icon"
-                    onClick={() => setShowFilter(true)}
-                    style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border-light)' }}
-                >
-                    <SlidersHorizontal size={18} color="var(--c-text-secondary)" />
+                <h2 style={{ flex: 1, fontSize: 'var(--fs-lg)', fontWeight: 'var(--fw-bold)' }}>
+                    {campus?.campus_name || 'Campus'}
+                </h2>
+                <button className="btn btn-icon btn-ghost" onClick={() => setShowSearch(!showSearch)}
+                    style={{ color: showSearch ? 'var(--c-accent)' : undefined }}>
+                    <Search size={20} />
                 </button>
-                <div
-                    className="avatar"
-                    onClick={() => navigate('/profile')}
-                    style={{ cursor: 'pointer' }}
-                >
-                    {currentUser?.display_name?.[0]?.toUpperCase() || <User size={16} />}
-                </div>
+                <button className="btn btn-icon btn-ghost" onClick={handleLocateMe}
+                    style={{ color: locating ? 'var(--c-accent)' : undefined, animation: locating ? 'pulse 1s infinite' : 'none' }}>
+                    <LocateFixed size={20} />
+                </button>
+                <button className="btn btn-icon btn-ghost" onClick={() => setShowFilter(true)}>
+                    <SlidersHorizontal size={20} />
+                </button>
             </div>
 
-            {/* Quick filter chips */}
-            <div style={{
-                display: 'flex',
-                gap: 'var(--sp-sm)',
-                padding: '0 0 var(--sp-md)',
-                overflowX: 'auto',
-                scrollbarWidth: 'none',
-                WebkitOverflowScrolling: 'touch',
-            }}>
-                {QUICK_FILTERS.map((chip) => (
-                    <button
-                        key={chip.id}
-                        className={`chip ${activeChip === chip.id ? 'chip-active' : 'chip-default'}`}
-                        onClick={() => setActiveChip(chip.id)}
-                    >
-                        {chip.icon && <span style={{ fontSize: '0.8rem' }}>{chip.icon}</span>}
-                        {chip.label}
+            {/* Address Search Bar */}
+            {showSearch && (
+                <div style={{
+                    padding: 'var(--sp-sm) var(--sp-lg)', background: 'var(--c-bg-glass)',
+                    backdropFilter: 'blur(20px)', borderBottom: '1px solid var(--c-border)',
+                    position: 'relative', zIndex: 499,
+                    animation: 'fadeIn 0.2s ease',
+                }}>
+                    <form onSubmit={handleAddressSearch} className="flex gap-sm items-center">
+                        <input
+                            type="text" className="input" autoFocus
+                            placeholder="Enter an address..."
+                            value={addressQuery}
+                            onChange={(e) => { setAddressQuery(e.target.value); setSearchError(''); }}
+                            style={{ flex: 1, fontSize: 'var(--fs-sm)' }}
+                        />
+                        <button type="submit" className="btn btn-primary btn-sm" disabled={searching || !addressQuery.trim()}
+                            style={{ minWidth: 70, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                            {searching ? <Loader size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <Search size={14} />}
+                            Go
+                        </button>
+                        <button type="button" className="btn btn-icon btn-ghost btn-sm" onClick={() => { setShowSearch(false); setSearchError(''); }}>
+                            <X size={16} />
+                        </button>
+                    </form>
+                    {searchError && (
+                        <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--c-error)', marginTop: 'var(--sp-xs)' }}>{searchError}</p>
+                    )}
+                </div>
+            )}
+
+            {/* Search Pin Indicator */}
+            {searchPin && (
+                <div style={{
+                    display: 'flex', alignItems: 'center', gap: 'var(--sp-sm)',
+                    padding: 'var(--sp-xs) var(--sp-lg)',
+                    background: 'rgba(255,74,110,0.1)', borderBottom: '1px solid rgba(255,74,110,0.2)',
+                    zIndex: 498,
+                }}>
+                    <div style={{
+                        width: 8, height: 8, borderRadius: '50%', background: '#FF4A6E', flexShrink: 0,
+                    }} />
+                    <span style={{ flex: 1, fontSize: 'var(--fs-xs)', color: 'var(--c-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        Showing popups near: <strong style={{ color: 'var(--c-text)' }}>{searchLabel}</strong>
+                    </span>
+                    <button className="btn btn-ghost btn-sm" onClick={clearSearchPin}
+                        style={{ fontSize: 'var(--fs-xs)', padding: '2px 8px', color: 'var(--c-error)' }}>
+                        Clear
                     </button>
-                ))}
-            </div>
+                </div>
+            )}
 
             {/* Map */}
-            <div style={{
-                flex: '0 0 auto',
-                height: '42vh',
-                borderRadius: 'var(--r-xl)',
-                overflow: 'hidden',
-                border: '1px solid var(--c-border-light)',
-                marginBottom: 'var(--sp-lg)',
-            }}>
+            <div style={{ flex: 1, position: 'relative' }}>
                 {campus && (
-                    <MapContainer
-                        center={[campus.lat, campus.lng]}
-                        zoom={15}
-                        style={{ height: '100%', width: '100%' }}
-                        zoomControl={false}
-                    >
+                    <MapContainer center={[campus.lat, campus.lng]} zoom={15}
+                        style={{ height: '100%', width: '100%', minHeight: '70vh' }} zoomControl={false}>
                         <TileLayer
-                            attribution='&copy; <a href="https://carto.com/">CARTO</a>'
-                            url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                            attribution='&copy; OpenStreetMap contributors &copy; CARTO'
+                            url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
                         />
-                        {todayPopups.map((popup) => (
-                            <Marker
-                                key={popup.id}
-                                position={[popup.lat, popup.lng]}
-                                icon={createPinIcon(popup.title.split(' ').slice(0, 2).join(' '))}
-                                eventHandlers={{ click: () => navigate(`/popup/${popup.id}`) }}
-                            >
+
+                        {/* Fly to location */}
+                        {flyTarget && <FlyToLocation position={flyTarget} />}
+
+                        {/* User Location Pin */}
+                        {userLocation && (
+                            <Marker position={userLocation} icon={userPinIcon}>
                                 <Popup>
-                                    <div style={{ minWidth: 150 }}>
+                                    <div style={{ textAlign: 'center', minWidth: 100 }}>
+                                        <strong style={{ color: '#4A90FF' }}>📍 You are here</strong>
+                                    </div>
+                                </Popup>
+                            </Marker>
+                        )}
+
+                        {/* Search Location Pin */}
+                        {searchPin && (
+                            <Marker position={searchPin} icon={searchPinIcon}>
+                                <Popup>
+                                    <div style={{ textAlign: 'center', minWidth: 120 }}>
+                                        <strong style={{ color: '#FF4A6E' }}>📍 {searchLabel}</strong>
+                                    </div>
+                                </Popup>
+                            </Marker>
+                        )}
+
+                        {/* Popup Pins */}
+                        {todayPopups.map((popup) => (
+                            <Marker key={popup.id} position={[popup.lat, popup.lng]}
+                                icon={createPinIcon(popup.title.split(' ').slice(0, 2).join(' '))}
+                                eventHandlers={{ click: () => navigate('/popup/' + popup.id) }}>
+                                <Popup>
+                                    <div style={{ minWidth: 160 }}>
                                         <strong>{popup.title}</strong>
-                                        <div className="flex items-center gap-xs" style={{ marginTop: 6, color: 'var(--c-text-secondary)', fontSize: 'var(--fs-xs)' }}>
-                                            <Clock size={10} />
-                                            {popup.start_time}–{popup.end_time}
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 6, color: 'var(--c-text-secondary)', fontSize: 'var(--fs-xs)' }}>
+                                            <Clock size={12} />{popup.start_time} - {popup.end_time}
                                         </div>
-                                        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--c-text-muted)', marginTop: 4 }}>
+                                        <div style={{ fontSize: 'var(--fs-xs)', marginTop: 4, color: 'var(--c-text-secondary)' }}>
                                             {getCreator(popup.creator_id)?.name}
+                                        </div>
+                                        <div style={{ fontSize: 'var(--fs-xs)', marginTop: 4, color: 'var(--c-text-accent)' }}>
+                                            {getPopupRsvps(popup.id).length} RSVPs
                                         </div>
                                     </div>
                                 </Popup>
@@ -169,101 +280,7 @@ export default function HomePage() {
                     </MapContainer>
                 )}
             </div>
-
-            {/* Happening Now section header */}
-            <div className="section-header">
-                <p className="section-title" style={{
-                    color: 'var(--c-amber)',
-                    borderBottom: '2px solid var(--c-amber)',
-                    paddingBottom: 'var(--sp-xs)',
-                }}>
-                    Happening Now
-                </p>
-                <button className="section-link" onClick={() => navigate('/trending')}>
-                    View All
-                </button>
-            </div>
-
-            {/* Featured popup card */}
-            {featuredPopup && (
-                <div
-                    className="featured-card"
-                    onClick={() => navigate(`/popup/${featuredPopup.id}`)}
-                    style={{ marginBottom: 'var(--sp-base)' }}
-                >
-                    <div
-                        className="featured-card-image"
-                        style={{
-                            background: `linear-gradient(135deg, var(--c-surface) 0%, rgba(232,149,42,0.1) 100%)`,
-                        }}
-                    >
-                        <span>{foodEmoji(featuredPopup.food_type)}</span>
-                        {/* Badges */}
-                        <div style={{ position: 'absolute', top: 12, right: 12, display: 'flex', gap: 'var(--sp-sm)' }}>
-                            {featuredPopup.until_sold_out && (
-                                <span className="badge badge-live">Limited Drop</span>
-                            )}
-                            {getPopupRsvps(featuredPopup.id).length > 10 && (
-                                <span className="badge badge-live">High Demand</span>
-                            )}
-                        </div>
-                    </div>
-                    <div className="featured-card-body">
-                        <div className="flex items-center justify-between">
-                            <h3>{featuredPopup.title}</h3>
-                            <span className="badge badge-live">
-                                {getPopupRsvps(featuredPopup.id).length} RSVPs
-                            </span>
-                        </div>
-                        <p>
-                            {getCreator(featuredPopup.creator_id)?.name} • {featuredPopup.location_name} • Ending in {featuredPopup.end_time}
-                        </p>
-                        <button
-                            className="btn btn-outline btn-full"
-                            style={{ marginTop: 'var(--sp-md)', letterSpacing: 'var(--ls-wider)' }}
-                            onClick={(e) => { e.stopPropagation(); navigate(`/popup/${featuredPopup.id}`); }}
-                        >
-                            Reserve Now
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            {/* Rest of popups as event cards */}
-            <div className="flex flex-col gap-md">
-                {todayPopups.slice(1).map((popup) => (
-                    <div
-                        key={popup.id}
-                        className="event-card"
-                        onClick={() => navigate(`/popup/${popup.id}`)}
-                    >
-                        <div className="event-card-thumb">
-                            {foodEmoji(popup.food_type)}
-                        </div>
-                        <div className="event-card-info">
-                            <h4>{popup.title}</h4>
-                            <p>
-                                {popup.start_time} • {popup.location_name}
-                            </p>
-                        </div>
-                        <span className="badge badge-rsvp">
-                            {getPopupRsvps(popup.id).length} RSVPs
-                        </span>
-                    </div>
-                ))}
-            </div>
-
-            {/* FAB */}
-            {currentUser?.creator_id && (
-                <button className="fab" onClick={() => navigate('/creator/new')}>
-                    <Plus size={24} />
-                </button>
-            )}
-
-            {showFilter && (
-                <FilterDrawer filters={filters} setFilters={setFilters} onClose={() => setShowFilter(false)} />
-            )}
-
+            {showFilter && <FilterDrawer filters={filters} setFilters={setFilters} onClose={() => setShowFilter(false)} />}
             <BottomNav />
         </div>
     );
