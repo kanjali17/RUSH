@@ -202,6 +202,7 @@ export const users = [
         campus_id: 'campus-1',
         display_name: 'Alex',
         following: ['creator-1', 'creator-2'],
+        instagram_handle: '@alex_rush',
     },
     {
         id: 'user-2',
@@ -211,6 +212,7 @@ export const users = [
         campus_id: 'campus-1',
         display_name: 'Jordan',
         following: ['creator-1'],
+        instagram_handle: '@jordan_explores',
     },
     {
         id: 'user-creator-1',

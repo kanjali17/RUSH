@@ -5,34 +5,25 @@ import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AppProvider, useApp } from '../context/AppContext';
-import LaunchScreen from './launch';
 
+
+// Remove unstable_settings to ensure app/index.tsx (splash) is the true entry point
+/*
 export const unstable_settings = {
   anchor: '(tabs)',
 };
+*/
 
 function RootContent() {
   const colorScheme = useColorScheme();
   const { currentUser, hasLaunched } = useApp();
 
-  if (!hasLaunched) {
-    return <LaunchScreen />;
-  }
-
-  // If no user is logged in, show the login screen
-  if (!currentUser) {
-    return (
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(auth)/login" options={{ title: 'Login' }} />
-      </Stack>
-    );
-  }
-
-  // Otherwise, show the app tabs
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="(auth)/login" />
+        <Stack.Screen name="(tabs)" />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       </Stack>
       <StatusBar style="auto" />

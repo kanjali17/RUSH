@@ -10,6 +10,7 @@ export default function FinalTouchesScreen() {
     const router = useRouter();
     const { login, updateProfile } = useApp();
     const [bio, setBio] = useState('');
+    const [instaHandle, setInstaHandle] = useState('');
     const [image, setImage] = useState<string | null>(null);
 
     const pickImage = async () => {
@@ -33,7 +34,7 @@ export default function FinalTouchesScreen() {
 
     const handleFinish = () => {
         // Complete the signup and log in
-        updateProfile({ bio, profile_photo: image });
+        updateProfile({ bio, profile_photo: image, instagram: instaHandle });
         login('newuser@university.edu', 'password123', 'explorer');
         router.push('/(tabs)');
     };
@@ -69,6 +70,22 @@ export default function FinalTouchesScreen() {
                             </View>
                         </TouchableOpacity>
                         <Text style={styles.avatarLabel}>UPLOAD PROFILE PHOTO</Text>
+                    </View>
+
+                    <View style={styles.inputGroup}>
+                        <Text style={styles.label}>INSTA HANDLE</Text>
+                        <View style={styles.instaInputWrapper}>
+                            <Text style={styles.instaPrefix}>@</Text>
+                            <TextInput
+                                style={styles.instaInput}
+                                placeholder="your.handle"
+                                placeholderTextColor="#4b5563"
+                                value={instaHandle}
+                                onChangeText={setInstaHandle}
+                                autoCapitalize="none"
+                                autoCorrect={false}
+                            />
+                        </View>
                     </View>
 
                     <View style={styles.inputGroup}>
@@ -208,10 +225,29 @@ const styles = StyleSheet.create({
         padding: 16,
         color: '#f1f1f5',
         fontSize: 14,
-        height: 120,
+        height: 100,
         textAlignVertical: 'top',
         borderWidth: 1,
         borderColor: 'rgba(255,255,255,0.05)',
+    },
+    instaInputWrapper: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(255,255,255,0.1)',
+        paddingVertical: 8,
+    },
+    instaPrefix: {
+        color: '#ff6b35',
+        fontSize: 16,
+        fontWeight: '900',
+        marginRight: 4,
+    },
+    instaInput: {
+        flex: 1,
+        color: '#f1f1f5',
+        fontSize: 16,
+        fontWeight: '600',
     },
     finishBtn: {
         height: 56,

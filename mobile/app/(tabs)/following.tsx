@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RushCard } from '../../components/rush/RushCard';
 import { useRouter } from 'expo-router';
 
-const FILTERS = ['All Feed', 'Today', 'Campus West'];
+const FILTERS = ['All Feed'];
 
 export default function FollowingScreen() {
     const insets = useSafeAreaInsets();
@@ -24,7 +24,10 @@ export default function FollowingScreen() {
                     </View>
                     <Text style={styles.headerTitle}>Following</Text>
                 </View>
-                <TouchableOpacity style={styles.notificationBtn}>
+                <TouchableOpacity
+                    style={styles.notificationBtn}
+                    onPress={() => router.push('/notifications')}
+                >
                     <Bell size={22} color="#f1f1f5" />
                     <View style={styles.badge} />
                 </TouchableOpacity>
@@ -70,7 +73,9 @@ export default function FollowingScreen() {
 
                 <View style={styles.cardContent}>
                     <Text style={styles.cardTitle}>{item.title}</Text>
-                    <Text style={styles.cardSubtitle}>by {creator?.name} • {item.location_name}</Text>
+                    <TouchableOpacity onPress={() => router.push(`/creator/${item.creator_id}` as any)}>
+                        <Text style={styles.cardSubtitle}>by {creator?.name} • {item.location_name}</Text>
+                    </TouchableOpacity>
                     <Text style={styles.cardDescription} numberOfLines={2}>
                         {item.description || "Fresh ingredients and amazing vibes guaranteed."}
                     </Text>

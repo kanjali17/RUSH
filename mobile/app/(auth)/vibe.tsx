@@ -11,8 +11,8 @@ const VIBES = [
 export default function VibeCheckScreen() {
     const router = useRouter();
     const [selectedVibes, setSelectedVibes] = useState<string[]>([]);
-    const [location, setLocation] = useState('');
-    const [zip, setZip] = useState('');
+    const [campus, setCampus] = useState('UT Austin');
+    const [showCampusDropdown, setShowCampusDropdown] = useState(false);
 
     const toggleVibe = (vibe: string) => {
         if (selectedVibes.includes(vibe)) {
@@ -54,29 +54,30 @@ export default function VibeCheckScreen() {
 
                 <View style={styles.locationSection}>
                     <View style={styles.inputGroup}>
-                        <Text style={styles.label}>CURRENT LOCATION</Text>
-                        <View style={styles.locationInputGroup}>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="CAMPUS OR BUILDING NAME"
-                                placeholderTextColor="#4b5563"
-                                value={location}
-                                onChangeText={setLocation}
-                            />
-                            <MapPin size={16} color="#4b5563" />
-                        </View>
-                    </View>
+                        <Text style={styles.label}>SELECT YOUR CAMPUS</Text>
+                        <TouchableOpacity
+                            style={styles.campusSelector}
+                            onPress={() => setShowCampusDropdown(!showCampusDropdown)}
+                        >
+                            <Text style={styles.campusText}>{campus}</Text>
+                            <MapPin size={16} color="#ff6b35" />
+                        </TouchableOpacity>
 
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>POSTAL CODE</Text>
-                        <TextInput
-                            style={styles.input}
-                            placeholder="ENTER ZIP CODE"
-                            placeholderTextColor="#4b5563"
-                            value={zip}
-                            onChangeText={setZip}
-                            keyboardType="number-pad"
-                        />
+                        {showCampusDropdown && (
+                            <View style={styles.dropdown}>
+                                <TouchableOpacity
+                                    style={styles.dropdownItem}
+                                    onPress={() => {
+                                        setCampus('UT Austin');
+                                        setShowCampusDropdown(false);
+                                    }}
+                                >
+                                    <Text style={styles.dropdownItemText}>UT Austin</Text>
+                                    <View style={styles.activeIndicator} />
+                                </TouchableOpacity>
+                                <Text style={styles.comingSoonText}>MORE CAMPUSES COMING SOON</Text>
+                            </View>
+                        )}
                     </View>
                 </View>
 
@@ -189,11 +190,54 @@ const styles = StyleSheet.create({
         fontWeight: '800',
         letterSpacing: 1,
     },
-    locationInputGroup: {
+    campusSelector: {
         flexDirection: 'row',
         alignItems: 'center',
+        justifyContent: 'space-between',
         borderBottomWidth: 1,
         borderBottomColor: 'rgba(255,255,255,0.1)',
+        paddingVertical: 12,
+    },
+    campusText: {
+        color: '#f1f1f5',
+        fontSize: 16,
+        fontWeight: '700',
+    },
+    dropdown: {
+        marginTop: 10,
+        backgroundColor: 'rgba(255,255,255,0.05)',
+        borderRadius: 12,
+        padding: 8,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
+    },
+    dropdownItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: 12,
+        backgroundColor: 'rgba(255, 107, 53, 0.1)',
+        borderRadius: 8,
+    },
+    dropdownItemText: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    activeIndicator: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: '#ff6b35',
+    },
+    comingSoonText: {
+        color: 'rgba(255,255,255,0.2)',
+        fontSize: 8,
+        fontWeight: '800',
+        textAlign: 'center',
+        marginTop: 12,
+        marginBottom: 4,
+        letterSpacing: 1,
     },
     input: {
         flex: 1,

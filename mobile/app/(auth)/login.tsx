@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { StyleSheet, View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, SafeAreaView } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useApp } from '../../context/AppContext';
 import { X, Eye, EyeOff } from 'lucide-react-native';
@@ -7,30 +8,35 @@ import { RushButton } from '../../components/rush/RushButton';
 
 export default function LoginScreen() {
     const router = useRouter();
-    const { login } = useApp();
+    const { login, setHasLaunched } = useApp();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
 
     const handleLogin = () => {
-        // Simplified login for MVP/Demo - default to 'explorer' role for general login
         login(email || 'alex@utexas.edu', password || 'password123', 'explorer');
     };
 
     return (
         <SafeAreaView style={styles.container}>
+            <View style={styles.topBar}>
+                <TouchableOpacity onPress={() => {
+                    setHasLaunched(false);
+                    router.replace('/');
+                }}>
+                    <X size={24} color="#fff" />
+                </TouchableOpacity>
+                <View style={styles.secureHeader}>
+                    <Text style={styles.secureText}>SECURE ACCESS</Text>
+                </View>
+                <View style={{ width: 24 }} />
+            </View>
+
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={styles.content}
             >
-                <TouchableOpacity style={styles.closeBtn} onPress={() => { }}>
-                    <X size={24} color="#f1f1f5" />
-                </TouchableOpacity>
-
                 <View style={styles.header}>
-                    <View style={styles.secureAccessBox}>
-                        <Text style={styles.secureAccessText}>SECURE ACCESS</Text>
-                    </View>
                     <Text style={styles.logo}>RUSH</Text>
                     <Text style={styles.subLogo}>UNDERGROUND DINING</Text>
                 </View>
@@ -41,7 +47,7 @@ export default function LoginScreen() {
                         <TextInput
                             style={styles.input}
                             placeholder="name@university.edu"
-                            placeholderTextColor="#4b5563"
+                            placeholderTextColor="rgba(255,255,255,0.2)"
                             value={email}
                             onChangeText={setEmail}
                             autoCapitalize="none"
@@ -60,7 +66,7 @@ export default function LoginScreen() {
                             <TextInput
                                 style={styles.input}
                                 placeholder="••••••••"
-                                placeholderTextColor="#4b5563"
+                                placeholderTextColor="rgba(255,255,255,0.2)"
                                 value={password}
                                 onChangeText={setPassword}
                                 secureTextEntry={!showPassword}
@@ -69,21 +75,31 @@ export default function LoginScreen() {
                                 style={styles.eyeBtn}
                                 onPress={() => setShowPassword(!showPassword)}
                             >
-                                {showPassword ? <EyeOff size={20} color="#4b5563" /> : <Eye size={20} color="#4b5563" />}
+                                {showPassword ? <EyeOff size={20} color="rgba(255,255,255,0.2)" /> : <Eye size={20} color="rgba(255,255,255,0.2)" />}
                             </TouchableOpacity>
                         </View>
                     </View>
 
-                    <RushButton
-                        title="CONTINUE"
+                    <TouchableOpacity
+                        style={styles.continueBtn}
                         onPress={handleLogin}
-                        style={styles.loginBtn}
-                    />
+                        activeOpacity={0.8}
+                    >
+                        <LinearGradient
+                            colors={['#ff8c42', '#ff6b35']}
+                            style={styles.continueGradient}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                        >
+                            <Text style={styles.continueText}>CONTINUE</Text>
+                        </LinearGradient>
+                    </TouchableOpacity>
 
                     <View style={styles.footer}>
                         <Text style={styles.footerText}>ACCESS RESTRICTED TO MEMBERS</Text>
                         <TouchableOpacity onPress={() => router.push('/(auth)/signup')}>
-                            <Text style={styles.joinText}>CREATE AN ACCOUNT</Text>
+                            <Text style={styles.joinText}>JOIN THE RUSH</Text>
+                            <View style={styles.underline} />
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -101,51 +117,56 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#000000',
     },
+    topBar: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        paddingTop: 10,
+    },
+    secureHeader: {
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
+        paddingHorizontal: 12,
+        paddingVertical: 5,
+        borderRadius: 4,
+    },
+    secureText: {
+        color: 'rgba(255,255,255,0.4)',
+        fontSize: 10,
+        fontWeight: '900',
+        letterSpacing: 2,
+    },
     content: {
         flex: 1,
         paddingHorizontal: 30,
     },
-    closeBtn: {
-        marginTop: 20,
-        alignSelf: 'flex-start',
-    },
     header: {
         alignItems: 'center',
         marginTop: 60,
-        marginBottom: 60,
-    },
-    secureAccessBox: {
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.2)',
-        paddingHorizontal: 12,
-        paddingVertical: 4,
-        borderRadius: 4,
-        marginBottom: 20,
-    },
-    secureAccessText: {
-        color: '#f1f1f5',
-        fontSize: 10,
-        fontWeight: '800',
-        letterSpacing: 2,
+        marginBottom: 80,
     },
     logo: {
-        fontSize: 72,
+        fontSize: 84,
         fontWeight: '900',
-        color: '#ff6b35', // RUSH ORANGE
+        color: '#ff6b35',
         letterSpacing: -2,
+        textShadowColor: 'rgba(255, 107, 53, 0.4)',
+        textShadowOffset: { width: 0, height: 0 },
+        textShadowRadius: 20,
     },
     subLogo: {
         fontSize: 12,
         fontWeight: '800',
-        color: '#f1f1f5',
+        color: '#ff6b35',
         letterSpacing: 4,
-        marginTop: -5,
+        marginTop: 5,
     },
     form: {
-        gap: 30,
+        gap: 40,
     },
     inputGroup: {
-        gap: 8,
+        gap: 12,
     },
     labelRow: {
         flexDirection: 'row',
@@ -153,22 +174,24 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     label: {
-        color: '#4b5563',
+        color: 'rgba(255,255,255,0.3)',
         fontSize: 10,
-        fontWeight: '800',
-        letterSpacing: 1,
+        fontWeight: '900',
+        letterSpacing: 1.5,
     },
     forgotText: {
         color: '#ff6b35',
         fontSize: 10,
-        fontWeight: '800',
+        fontWeight: '900',
+        letterSpacing: 0.5,
     },
     input: {
         borderBottomWidth: 1,
         borderBottomColor: 'rgba(255,255,255,0.1)',
-        color: '#f1f1f5',
-        fontSize: 16,
+        color: '#fff',
+        fontSize: 18,
         paddingVertical: 12,
+        fontWeight: '500',
     },
     passwordContainer: {
         position: 'relative',
@@ -178,27 +201,45 @@ const styles = StyleSheet.create({
         right: 0,
         bottom: 12,
     },
-    loginBtn: {
-        height: 56,
-        borderRadius: 12,
-        marginTop: 10,
+    continueBtn: {
+        height: 64,
+        borderRadius: 32,
+        marginTop: 20,
+        overflow: 'hidden',
+    },
+    continueGradient: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    continueText: {
+        color: '#000',
+        fontSize: 16,
+        fontWeight: '900',
+        letterSpacing: 2,
     },
     footer: {
         alignItems: 'center',
-        gap: 10,
+        gap: 12,
         marginTop: 20,
     },
     footerText: {
-        color: '#4b5563',
+        color: 'rgba(255,255,255,0.2)',
         fontSize: 10,
-        fontWeight: '700',
+        fontWeight: '800',
         letterSpacing: 1,
     },
     joinText: {
         color: '#ff6b35',
-        fontSize: 12,
+        fontSize: 14,
         fontWeight: '900',
-        letterSpacing: 0.5,
+        letterSpacing: 1,
+    },
+    underline: {
+        height: 1,
+        backgroundColor: '#ff6b35',
+        width: '100%',
+        marginTop: 2,
     },
     bottomStatus: {
         position: 'absolute',
@@ -208,9 +249,9 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     statusText: {
-        color: '#1a1a1a',
+        color: 'rgba(255,255,255,0.05)',
         fontSize: 10,
         fontWeight: '900',
-        letterSpacing: 1,
+        letterSpacing: 2,
     },
 });

@@ -7,14 +7,20 @@ interface RushCardProps {
     title?: string;
     description?: string;
     variant?: 'default' | 'accent' | 'glass';
+    onCreatorPress?: () => void;
+    creatorName?: string;
 }
+
+import { TouchableOpacity } from 'react-native';
 
 export function RushCard({
     children,
     style,
     title,
     description,
-    variant = 'default'
+    variant = 'default',
+    onCreatorPress,
+    creatorName
 }: RushCardProps) {
     return (
         <View style={[
@@ -23,7 +29,14 @@ export function RushCard({
             variant === 'glass' && styles.glass,
             style
         ]}>
-            {title && <Text style={styles.title}>{title}</Text>}
+            <View style={styles.headerRow}>
+                {title && <Text style={styles.title}>{title}</Text>}
+                {creatorName && (
+                    <TouchableOpacity onPress={onCreatorPress}>
+                        <Text style={styles.creatorLink}>by {creatorName}</Text>
+                    </TouchableOpacity>
+                )}
+            </View>
             {description && <Text style={styles.description}>{description}</Text>}
             {children}
         </View>
@@ -58,5 +71,18 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: '#9ca3af',
         marginBottom: 12,
+    },
+    headerRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    creatorLink: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: '#ff6b35',
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
     }
 });

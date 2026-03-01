@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, TextInput, Linking, Platform, ScrollView, FlatList, Image } from 'react-native';
 import MapView, { Marker, UrlTile, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
-import { Search, LocateFixed, SlidersHorizontal, X, Flame, Plus, Menu, Search as SearchIcon, Utensils } from 'lucide-react-native';
+import { Search, LocateFixed, SlidersHorizontal, X, Flame, Plus, Menu, Search as SearchIcon, Utensils, Bell } from 'lucide-react-native';
 import { useApp, Popup } from '../../context/AppContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RushCard } from '../../components/rush/RushCard';
@@ -21,6 +21,18 @@ export default function MapScreen() {
   const [loading, setLoading] = useState(true);
 
   const campus = campuses.find((c) => c.id === currentUser?.campus_id);
+
+  const filteredPopups = useMemo(() => {
+    let base = popups.filter(p => !campus || p.campus_id === campus.id);
+    if (activeFilter === 'LIVE NOW') {
+      return base.filter(p => p.status === 'active');
+    }
+    if (activeFilter === 'TRENDING') {
+      // Logic for trending: e.g., high attendance or specific flag
+      return base.filter(p => p.attendance > 40 || p.status === 'active').sort((a, b) => (b.attendance || 0) - (a.attendance || 0));
+    }
+    return base;
+  }, [popups, campus, activeFilter]);
 
   useEffect(() => {
     (async () => {
@@ -54,20 +66,18 @@ export default function MapScreen() {
         region={region}
         customMapStyle={DARK_MAP_STYLE}
       >
-        {popups
-          .filter(p => !campus || p.campus_id === campus.id)
-          .map((popup) => (
-            <Marker
-              key={popup.id}
-              coordinate={{ latitude: popup.lat, longitude: popup.lng }}
-              onPress={() => router.push(`/popup/${popup.id}`)}
-            >
-              <View style={styles.markerContainer}>
-                <View style={styles.markerGlow} />
-                <View style={styles.markerCore} />
-              </View>
-            </Marker>
-          ))}
+        {filteredPopups.map((popup) => (
+          <Marker
+            key={popup.id}
+            coordinate={{ latitude: popup.lat, longitude: popup.lng }}
+            onPress={() => router.push(`/popup/${popup.id}`)}
+          >
+            <View style={styles.markerContainer}>
+              <View style={[styles.markerGlow, activeFilter === 'TRENDING' && { backgroundColor: '#ff9f42', opacity: 0.5 }]} />
+              <View style={[styles.markerCore, activeFilter === 'TRENDING' && { backgroundColor: '#ff9f42' }]} />
+            </View>
+          </Marker>
+        ))}
       </MapView>
 
       {/* Top Navigation */}
@@ -79,11 +89,12 @@ export default function MapScreen() {
           <Text style={styles.headerLogoText}>RUSH</Text>
         </View>
         <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.headerIconButton}>
-            <SearchIcon size={20} color="#f1f1f5" strokeWidth={2.5} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIconButton}>
-            <SlidersHorizontal size={20} color="#f1f1f5" strokeWidth={2.5} />
+          <TouchableOpacity
+            style={styles.headerIconButton}
+            onPress={() => router.push('/notifications')}
+          >
+            <Bell size={20} color="#f1f1f5" strokeWidth={2.5} />
+            <View style={styles.activeDot} />
           </TouchableOpacity>
         </View>
       </View>
@@ -317,5 +328,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#ff6b35',
     borderWidth: 2,
     borderColor: '#fff',
+  },
+  activeDot: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#ff6b35',
+    borderWidth: 2,
+    borderColor: '#1a1a1a',
   }
 });

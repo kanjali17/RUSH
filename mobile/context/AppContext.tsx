@@ -40,15 +40,72 @@ export interface Popup {
     start_date?: string;
 }
 
+export interface Notification {
+    id: string;
+    user_id: string;
+    type: 'EVENT_FOLLOW' | 'RSVP_REMINDER';
+    title: string;
+    message: string;
+    timestamp: string;
+    read: boolean;
+    data?: any;
+}
+
+export interface User {
+    id: string;
+    email: string;
+    password?: string;
+    role: string;
+    campus_id: string | null;
+    display_name: string;
+    avatar?: string;
+    bio?: string;
+    following: string[];
+    instagram_handle?: string;
+    profile_photo?: string;
+    interests?: string[];
+    quiz_answers?: any;
+}
+
+export interface Creator {
+    id: string;
+    user_id: string;
+    name: string;
+    bio: string;
+    avatar: string;
+    followers: string[];
+    email?: string;
+    instagram_handle?: string;
+}
+
+export interface UserPost {
+    id: string;
+    user_id: string;
+    image_url: string;
+    caption: string;
+    timestamp: string;
+}
+
+export interface Rumor {
+    id: string;
+    user_id: string;
+    content: string;
+    timeframe: string;
+    timestamp: string;
+}
+
 export interface AppState {
-    currentUser: any;
+    currentUser: User | null;
     campuses: any[];
-    users: any[];
-    creators: any[];
+    users: User[];
+    creators: Creator[];
     popups: Popup[];
+    posts: UserPost[];
+    rumors: Rumor[]; // New field
     rsvps: any[];
     reviews: any[];
     reports: any[];
+    notifications: Notification[];
     hasLaunched: boolean;
 }
 
@@ -57,6 +114,8 @@ export interface AppContextType extends AppState {
     logout: () => void;
     selectCampus: (campusId: string) => void;
     createPopup: (popup: any) => void;
+    createPost: (post: { image_url: string; caption: string }) => void;
+    startRumor: (rumor: { content: string; timeframe: string }) => void; // New action
     rsvp: (popup_id: string, status: string) => void;
     toggleReminder: (rsvp_id: string) => void;
     cancelRsvp: (popup_id: string) => void;
@@ -65,7 +124,7 @@ export interface AppContextType extends AppState {
     followCreator: (creatorId: string) => void;
     setAttendance: (popup_id: string, count: number) => void;
     updateProfile: (profileData: any) => void;
-    getCreator: (creatorId: string) => any;
+    getCreator: (creatorId: string) => Creator | undefined;
     getPopupRsvps: (popupId: string) => any[];
     hasLaunched: boolean;
     setHasLaunched: (val: boolean) => void;
@@ -73,6 +132,7 @@ export interface AppContextType extends AppState {
     getUserRsvp: (popupId: string) => any;
     getAvgRating: (popupId: string) => number;
     getTrendingScore: (popup: any) => number;
+    markNotificationRead: (notificationId: string) => void;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -80,8 +140,8 @@ const AppContext = createContext<AppContextType | null>(null);
 const initialState: AppState = {
     currentUser: null,
     campuses: seedCampuses,
-    users: seedUsers,
-    creators: seedCreators,
+    users: seedUsers as any,
+    creators: seedCreators as any,
     popups: seedPopups.map((p, i) => {
         const popup: Popup = {
             ...p,
@@ -103,11 +163,72 @@ const initialState: AppState = {
     rsvps: seedRsvps,
     reviews: seedReviews,
     reports: seedReports,
+    notifications: [
+        {
+            id: 'n1',
+            user_id: 'user-1',
+            type: 'EVENT_FOLLOW',
+            title: 'New Event: Taco Tuesday',
+            message: "Maria's Kitchen just posted a new event at Gregory Gym Plaza!",
+            timestamp: new Date().toISOString(),
+            read: false,
+            data: { popup_id: 'popup-1' }
+        },
+        {
+            id: 'n2',
+            user_id: 'user-1',
+            type: 'RSVP_REMINDER',
+            title: 'RSVP Reminder',
+            message: 'Your RSVP for Acai Morning is in 1 hour!',
+            timestamp: new Date().toISOString(),
+            read: false,
+            data: { popup_id: 'popup-3' }
+        }
+    ],
+    posts: [],
+    rumors: [],
     hasLaunched: false,
 };
 
 function appReducer(state: AppState, action: any): AppState {
     switch (action.type) {
+        case 'CREATE_POST': {
+            const newPost: UserPost = {
+                id: 'post-' + Date.now(),
+                user_id: state.currentUser?.id || 'anonymous',
+                image_url: action.payload.image_url,
+                caption: action.payload.caption,
+                timestamp: new Date().toISOString(),
+            };
+            return { ...state, posts: [newPost, ...state.posts] };
+        }
+        case 'START_RUMOR': {
+            const newRumor: Rumor = {
+                id: 'rumor-' + Date.now(),
+                user_id: state.currentUser?.id || 'anonymous',
+                content: action.payload.content,
+                timeframe: action.payload.timeframe,
+                timestamp: new Date().toISOString(),
+            };
+
+            // Broadcast to followers (mocking this by adding a notification for the current user too for visibility)
+            const notification: Notification = {
+                id: 'n-rumor-' + Date.now(),
+                user_id: state.currentUser?.id || 'anonymous',
+                type: 'EVENT_FOLLOW',
+                title: '🕵️ RUMOR DETECTED',
+                message: `${state.currentUser?.display_name || 'A creator'} just teased a drop: "${action.payload.content}" happening ${action.payload.timeframe}`,
+                timestamp: new Date().toISOString(),
+                read: false,
+                data: { rumor_id: newRumor.id }
+            };
+
+            return {
+                ...state,
+                rumors: [newRumor, ...state.rumors],
+                notifications: [notification, ...state.notifications]
+            };
+        }
         case 'SET_LAUNCHED':
             return { ...state, hasLaunched: action.payload };
         case 'LOGIN': {
@@ -158,7 +279,7 @@ function appReducer(state: AppState, action: any): AppState {
         case 'SELECT_CAMPUS':
             return {
                 ...state,
-                currentUser: { ...state.currentUser, campus_id: action.payload },
+                currentUser: { ...state.currentUser, campus_id: action.payload } as any,
             };
 
         case 'CREATE_POPUP': {
@@ -236,28 +357,30 @@ function appReducer(state: AppState, action: any): AppState {
         }
 
         case 'FOLLOW_CREATOR': {
-            const creatorId = action.payload;
-            const following = state.currentUser?.following.includes(creatorId)
-                ? state.currentUser?.following.filter((id: string) => id !== creatorId)
-                : [...(state.currentUser?.following || []), creatorId];
+            const user = state.currentUser;
+            if (!user) return state;
 
-            const updatedCreators = state.creators.map((c) => {
-                if (c.id === creatorId) {
-                    const isFollowing = state.currentUser?.following.includes(creatorId);
-                    return {
+            const isFollowing = user.following.includes(action.payload);
+            const updatedFollowing = isFollowing
+                ? user.following.filter((id) => id !== action.payload)
+                : [...user.following, action.payload];
+
+            const updatedUser = { ...user, following: updatedFollowing };
+            const updatedCreators = state.creators.map((c) =>
+                c.id === action.payload
+                    ? {
                         ...c,
                         followers: isFollowing
-                            ? c.followers.filter((id: string) => id !== state.currentUser?.id)
-                            : [...c.followers, state.currentUser?.id],
-                    };
-                }
-                return c;
-            });
-
+                            ? c.followers.filter((fid) => fid !== user.id)
+                            : [...c.followers, user.id]
+                    }
+                    : c
+            );
             return {
                 ...state,
-                currentUser: { ...state.currentUser, following },
-                creators: updatedCreators,
+                currentUser: updatedUser as any,
+                creators: updatedCreators as any,
+                users: state.users.map((u) => u.id === user.id ? updatedUser : u)
             };
         }
 
@@ -272,27 +395,44 @@ function appReducer(state: AppState, action: any): AppState {
         }
 
         case 'UPDATE_PROFILE': {
-            const { display_name, bio, avatar, interests, quiz_answers, profile_photo, creator_name, creator_bio } = action.payload;
+            const { display_name, bio, avatar, interests, quiz_answers, profile_photo, instagram_handle, creator_name, creator_bio, creator_email, creator_insta } = action.payload;
+            const user = state.currentUser as any;
             const updatedUser = {
-                ...state.currentUser,
-                display_name: display_name || state.currentUser?.display_name,
-                bio: bio !== undefined ? bio : state.currentUser?.bio,
-                avatar: avatar || state.currentUser?.avatar,
-                interests: interests || state.currentUser?.interests || [],
-                quiz_answers: quiz_answers || state.currentUser?.quiz_answers || {},
-                profile_photo: profile_photo !== undefined ? profile_photo : state.currentUser?.profile_photo,
+                ...user,
+                display_name: display_name || user?.display_name,
+                bio: bio !== undefined ? bio : user?.bio,
+                avatar: avatar || user?.avatar,
+                interests: interests || user?.interests || [],
+                quiz_answers: quiz_answers || user?.quiz_answers || {},
+                profile_photo: profile_photo !== undefined ? profile_photo : user?.profile_photo,
+                instagram_handle: instagram_handle !== undefined ? instagram_handle : user?.instagram_handle,
+                email: action.payload.email || user?.email,
             };
             let updatedCreators = state.creators;
-            if (state.currentUser?.role === 'creator' && state.currentUser?.creator_id) {
+            if (user?.role === 'creator' && user?.creator_id) {
                 updatedCreators = state.creators.map((c) =>
-                    c.id === state.currentUser?.creator_id
-                        ? { ...c, name: creator_name || c.name, bio: creator_bio !== undefined ? creator_bio : c.bio }
+                    c.id === user.creator_id
+                        ? {
+                            ...c,
+                            name: creator_name || c.name,
+                            bio: creator_bio !== undefined ? creator_bio : c.bio,
+                            email: creator_email || c.email,
+                            instagram_handle: creator_insta || c.instagram_handle
+                        }
                         : c
                 );
             }
-            return { ...state, currentUser: updatedUser, creators: updatedCreators };
+            return { ...state, currentUser: updatedUser as any, creators: updatedCreators };
         }
 
+        case 'MARK_NOTIFICATION_READ': {
+            return {
+                ...state,
+                notifications: state.notifications.map((n) =>
+                    n.id === action.payload ? { ...n, read: true } : n
+                ),
+            };
+        }
         default:
             return state;
     }
@@ -320,6 +460,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     );
     const createPopup = useCallback(
         (popup: any) => dispatch({ type: 'CREATE_POPUP', payload: popup }),
+        []
+    );
+    const createPost = useCallback(
+        (post: { image_url: string; caption: string }) => dispatch({ type: 'CREATE_POST', payload: post }),
+        []
+    );
+    const startRumor = useCallback(
+        (rumor: { content: string; timeframe: string }) => dispatch({ type: 'START_RUMOR', payload: rumor }),
         []
     );
     const rsvp = useCallback(
@@ -400,12 +548,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
         [state.rsvps, getAvgRating]
     );
 
+    const markNotificationRead = useCallback(
+        (notificationId: string) => dispatch({ type: 'MARK_NOTIFICATION_READ', payload: notificationId }),
+        []
+    );
+
     const value: AppContextType = {
         ...state,
         login,
         logout,
         selectCampus,
         createPopup,
+        createPost,
+        startRumor,
         rsvp,
         toggleReminder,
         cancelRsvp,
@@ -420,6 +575,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         getUserRsvp,
         getAvgRating,
         getTrendingScore,
+        markNotificationRead,
         hasLaunched: state.hasLaunched,
         setHasLaunched,
     };

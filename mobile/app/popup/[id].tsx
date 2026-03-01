@@ -3,7 +3,7 @@ import { StyleSheet, View, Text, ScrollView, TouchableOpacity, Image, Linking, P
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useApp } from '../../context/AppContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, Clock, MapPin, Users, Heart, Share2, ChevronRight, Zap } from 'lucide-react-native';
+import { X, Clock, MapPin, Users, Heart, Share2, ChevronRight, Zap, ArrowRight } from 'lucide-react-native';
 import { RushButton } from '../../components/rush/RushButton';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MotiView } from 'moti';
@@ -14,11 +14,12 @@ export default function PopupDetailScreen() {
     const { id } = useLocalSearchParams();
     const router = useRouter();
     const insets = useSafeAreaInsets();
-    const { popups, creators, rsvp, getUserRsvp } = useApp();
+    const { popups, creators, rsvp, getUserRsvp, followCreator, currentUser } = useApp();
 
     const popup = popups.find(p => p.id === id);
     const creator = popup ? creators.find(c => c.id === popup.creator_id) : null;
     const existingRsvp = popup ? getUserRsvp(popup.id) : null;
+    const isFollowing = creator && currentUser?.following.includes(creator.id);
 
     if (!popup) return null;
 
@@ -60,20 +61,35 @@ export default function PopupDetailScreen() {
                         </TouchableOpacity>
 
                         <View style={styles.heroContent}>
-                            <View style={styles.liveQuestBadge}>
-                                <View style={styles.badgeDot} />
-                                <Text style={styles.liveQuestText}>LIVE QUEST</Text>
+                            <View style={styles.activeNowBadge}>
+                                <Text style={styles.activeNowText}>ACTIVE NOW</Text>
                             </View>
-                            <Text style={styles.title}>{popup.title}</Text>
+                            <Text style={styles.heroTitle}>{popup.title.toUpperCase()}</Text>
                         </View>
                     </MotiView>
                 </View>
 
-                {/* Info Section */}
                 <View style={styles.content}>
-                    <View style={styles.featuredTag}>
-                        <Text style={styles.featuredTagText}>FEATURED EVENT</Text>
-                    </View>
+                    <MotiView
+                        from={{ opacity: 0, translateY: 10 }}
+                        animate={{ opacity: 1, translateY: 0 }}
+                        transition={{ delay: 200 }}
+                        style={styles.creatorCard}
+                    >
+                        <TouchableOpacity
+                            style={styles.creatorContent}
+                            onPress={() => router.push(`/creator/${popup.creator_id}` as any)}
+                        >
+                            <View style={styles.creatorAvatar}>
+                                <Text style={styles.avatarEmoji}>{creator?.avatar || '👨‍🍳'}</Text>
+                            </View>
+                            <View>
+                                <Text style={styles.curatedByLabel}>CURATED BY</Text>
+                                <Text style={styles.creatorName}>{creator?.name}</Text>
+                            </View>
+                        </TouchableOpacity>
+                        <ChevronRight size={16} color="rgba(255,255,255,0.2)" />
+                    </MotiView>
 
                     <Text style={styles.description}>
                         A curated side-quest for the refined palate.
@@ -87,6 +103,7 @@ export default function PopupDetailScreen() {
                             {popup.menu?.map(item => (
                                 <View key={item.id} style={styles.menuItem}>
                                     <Text style={styles.menuItemName}>{item.name}</Text>
+                                    <View style={styles.menuDash} />
                                     <Text style={styles.menuItemDesc}>
                                         {item.description || "Wild forest mushrooms, essence of white truffle oil, hand-picked herbs."}
                                     </Text>
@@ -147,17 +164,18 @@ export default function PopupDetailScreen() {
                                 <Text style={styles.rsvpBtnText}>
                                     {existingRsvp ? "RSVP'D TO GATHERING" : "RSVP TO THE GATHERING"}
                                 </Text>
-                                <Zap size={18} color="#000" fill="#000" />
+                                <ArrowRight size={20} color="#000" strokeWidth={3} />
                             </LinearGradient>
                         </TouchableOpacity>
 
-                        <Text style={styles.limitText}>LIMITED COMMUNITY SLOT</Text>
+                        <Text style={styles.communityHeader}>COMMUNITY MEMBERS JOINING</Text>
 
                         <View style={styles.attendeeStack}>
                             {/* Dummy Attendee Icons */}
                             <View style={[styles.attendeeCircle, { backgroundColor: '#2a2a3e' }]}><Text style={styles.attendeeInit}>JD</Text></View>
                             <View style={[styles.attendeeCircle, { backgroundColor: '#3a2a1e', marginLeft: -10 }]}><Text style={styles.attendeeInit}>AS</Text></View>
-                            <View style={[styles.attendeeCircle, { backgroundColor: 'rgba(255,255,255,0.1)', marginLeft: -10 }]}><Text style={styles.attendeeCount}>+39</Text></View>
+                            <View style={[styles.attendeeCircle, { backgroundColor: '#1a2a3e', marginLeft: -10 }]}><Text style={styles.attendeeInit}>MK</Text></View>
+                            <View style={[styles.attendeeCircle, { backgroundColor: 'rgba(255,255,255,0.05)', marginLeft: -10 }]}><Text style={styles.attendeeCount}>+39</Text></View>
                         </View>
                     </View>
                 </View>
@@ -209,51 +227,75 @@ const styles = StyleSheet.create({
         left: 30,
         right: 30,
     },
-    liveQuestBadge: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
+    activeNowBadge: {
+        backgroundColor: '#ff6b35',
+        alignSelf: 'flex-start',
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 12,
         marginBottom: 12,
     },
-    badgeDot: {
-        width: 6,
-        height: 6,
-        borderRadius: 3,
-        backgroundColor: '#ff6b35',
-    },
-    liveQuestText: {
-        color: '#ff6b35',
+    activeNowText: {
+        color: '#fff',
         fontSize: 10,
         fontWeight: '900',
-        letterSpacing: 1,
+        letterSpacing: 0.5,
     },
-    title: {
-        fontSize: 48,
+    heroTitle: {
+        fontSize: 44,
         color: '#fff',
-        fontWeight: '800',
-        lineHeight: 52,
+        fontWeight: '900',
+        lineHeight: 48,
         fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
     },
     content: {
         paddingHorizontal: 24,
-        paddingTop: 30,
+        paddingTop: 20,
     },
-    featuredTag: {
-        backgroundColor: 'rgba(255, 107, 53, 0.1)',
-        alignSelf: 'flex-start',
+    creatorCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: 'rgba(255,255,255,0.05)',
+        borderRadius: 18,
         paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 10,
-        marginBottom: 16,
+        paddingVertical: 10,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
+        marginBottom: 30,
+        width: 200, // Compact as per mockup
     },
-    featuredTagText: {
-        color: '#ff6b35',
-        fontSize: 9,
-        fontWeight: '900',
-        letterSpacing: 1,
+    creatorContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+    },
+    creatorAvatar: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: '#1a1a1a',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
+    },
+    curatedByLabel: {
+        color: 'rgba(255,255,255,0.3)',
+        fontSize: 8,
+        fontWeight: '800',
+        letterSpacing: 0.5,
+    },
+    creatorName: {
+        color: '#fff',
+        fontSize: 12,
+        fontWeight: '700',
+    },
+    avatarEmoji: {
+        fontSize: 14,
     },
     description: {
-        color: 'rgba(255,255,255,0.5)',
+        color: 'rgba(255,255,255,0.4)',
         fontSize: 14,
         lineHeight: 22,
         fontWeight: '500',
@@ -267,24 +309,30 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     columnLabel: {
-        color: 'rgba(255,255,255,0.2)',
-        fontSize: 9,
+        color: '#ff6b35',
+        fontSize: 10,
         fontWeight: '900',
-        letterSpacing: 1,
+        letterSpacing: 1.5,
         marginBottom: 24,
     },
     menuItem: {
-        marginBottom: 32,
+        marginBottom: 40,
     },
     menuItemName: {
         color: '#fff',
-        fontSize: 22,
-        fontWeight: '700',
-        marginBottom: 8,
+        fontSize: 24,
+        fontWeight: '900',
+        marginBottom: 4,
         fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
     },
+    menuDash: {
+        width: 24,
+        height: 2,
+        backgroundColor: '#ff6b35',
+        marginBottom: 12,
+    },
     menuItemDesc: {
-        color: 'rgba(255,255,255,0.4)',
+        color: 'rgba(255,255,255,0.3)',
         fontSize: 12,
         lineHeight: 18,
         fontWeight: '500',
@@ -305,7 +353,7 @@ const styles = StyleSheet.create({
     miniMap: {
         width: 100,
         height: 60,
-        borderRadius: 8,
+        borderRadius: 12,
         marginTop: 8,
         overflow: 'hidden',
         borderWidth: 1,
@@ -324,9 +372,9 @@ const styles = StyleSheet.create({
         marginLeft: -6,
     },
     capacityValue: {
-        color: 'rgba(255,255,255,0.5)',
-        fontSize: 14,
-        fontWeight: '700',
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: '900',
     },
     capacityTrack: {
         height: 6,
@@ -348,6 +396,11 @@ const styles = StyleSheet.create({
         height: 64,
         borderRadius: 20,
         overflow: 'hidden',
+        shadowColor: '#ff6b35',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.4,
+        shadowRadius: 15,
+        elevation: 8,
     },
     rsvpGradient: {
         flex: 1,
@@ -362,22 +415,24 @@ const styles = StyleSheet.create({
         fontWeight: '900',
         letterSpacing: 0.5,
     },
-    limitText: {
-        color: 'rgba(255,255,255,0.3)',
-        fontSize: 9,
+    communityHeader: {
+        color: '#ff6b35',
+        fontSize: 10,
         fontWeight: '900',
         letterSpacing: 1.5,
-        marginTop: 20,
+        marginTop: 40,
         marginBottom: 16,
+        textAlign: 'center',
     },
     attendeeStack: {
         flexDirection: 'row',
         alignItems: 'center',
+        justifyContent: 'center',
     },
     attendeeCircle: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
+        width: 28,
+        height: 28,
+        borderRadius: 14,
         borderWidth: 2,
         borderColor: '#0a0a0c',
         justifyContent: 'center',
@@ -385,12 +440,12 @@ const styles = StyleSheet.create({
     },
     attendeeInit: {
         color: '#fff',
-        fontSize: 10,
+        fontSize: 8,
         fontWeight: '700',
     },
     attendeeCount: {
         color: '#fff',
-        fontSize: 10,
+        fontSize: 8,
         fontWeight: '700',
-    }
+    },
 });
