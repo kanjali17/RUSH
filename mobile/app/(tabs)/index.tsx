@@ -114,28 +114,7 @@ export default function MapScreen() {
         ))}
       </View>
 
-      {/* Bottom Category Overlay */}
-      <MotiView
-        from={{ translateY: 100, opacity: 0 }}
-        animate={{ translateY: 0, opacity: 1 }}
-        transition={{ type: 'spring', delay: 500 }}
-        style={styles.categoryOverlay}
-      >
-        <LinearGradient
-          colors={['rgba(15,15,20,0.95)', '#000']}
-          style={styles.categoryContent}
-        >
-          <View style={styles.handle} />
 
-          <View style={styles.categoryMain}>
-            <View style={styles.iconCircle}>
-              <Utensils size={32} color="rgba(255,157,66,0.2)" />
-            </View>
-            <Text style={styles.categoryTitle}>SELECT A CATEGORY</Text>
-            <Text style={styles.categorySubtitle}>Tap a button above to discover the best campus food spots right now.</Text>
-          </View>
-        </LinearGradient>
-      </MotiView>
 
       {loading && (
         <View style={styles.loader}>
@@ -258,55 +237,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ff6b35',
     marginRight: 6,
   },
-  categoryOverlay: {
-    position: 'absolute',
-    bottom: 0, left: 0, right: 0,
-    zIndex: 110,
-  },
-  categoryContent: {
-    paddingTop: 12,
-    paddingBottom: 40,
-    paddingHorizontal: 24,
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    alignItems: 'center',
-    borderTopWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
-  },
-  handle: {
-    width: 40,
-    height: 4,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 2,
-    marginBottom: 30,
-  },
-  categoryMain: {
-    alignItems: 'center',
-    gap: 12,
-  },
-  iconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: 'rgba(255,255,255,0.02)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  categoryTitle: {
-    color: '#ff6b35',
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 2,
-  },
-  categorySubtitle: {
-    color: 'rgba(255,255,255,0.3)',
-    fontSize: 12,
-    textAlign: 'center',
-    lineHeight: 18,
-    fontWeight: '600',
-    paddingHorizontal: 20,
-  },
+
   markerContainer: {
     width: 24,
     height: 24,

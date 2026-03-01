@@ -11,8 +11,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 export default function CreateEventScreen() {
     const insets = useSafeAreaInsets();
     const router = useRouter();
-    const { createPopup, currentUser } = useApp();
+    const { createPopup, currentUser, popups, drafts, saveDraft } = useApp();
 
+    const [step, setStep] = useState<'selection' | 'form'>('selection');
     const [title, setTitle] = useState('');
     const [locationName, setLocationName] = useState('');
     const [menuItems, setMenuItems] = useState([
@@ -31,6 +32,39 @@ export default function CreateEventScreen() {
     const updateMenuItem = (id: string, field: 'name' | 'price', value: string) => {
         setMenuItems(menuItems.map(item => item.id === id ? { ...item, [field]: value } : item));
     };
+
+    const handleSaveDraft = () => {
+        if (!title.trim()) {
+            alert('Please enter a title to save a draft');
+            return;
+        }
+        saveDraft({
+            title,
+            location_name: locationName,
+            menu: menuItems.map(item => ({
+                id: item.id,
+                name: item.name,
+                price: parseFloat(item.price) || 0,
+                description: ''
+            }))
+        });
+        alert('Draft saved!');
+        router.back();
+    };
+
+    const applyTemplate = (source: any) => {
+        setTitle(source.title);
+        setLocationName(source.location_name);
+        setMenuItems(source.menu.map((m: any) => ({
+            id: m.id,
+            name: m.name,
+            price: m.price.toString()
+        })));
+        setStep('form');
+    };
+
+    const userTemplates = popups.filter(p => p.creator_id === currentUser?.id || (currentUser?.role === 'creator' && p.creator_id === currentUser?.id));
+    // Filter by actual creator_id if available, or just fallback to user's popups
 
     const handlePublish = () => {
         createPopup({
@@ -59,119 +93,187 @@ export default function CreateEventScreen() {
                 <TouchableOpacity onPress={() => router.back()} style={styles.closeBtn}>
                     <X size={24} color="#f1f1f5" />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Create Pop-up</Text>
-                <View style={{ width: 24 }} />
+                <Text style={styles.headerTitle}>{step === 'selection' ? 'Choose Origin' : 'Create Pop-up'}</Text>
+                {step === 'form' ? (
+                    <TouchableOpacity onPress={handleSaveDraft} style={styles.draftBtn}>
+                        <Text style={styles.draftBtnText}>DRAFT</Text>
+                    </TouchableOpacity>
+                ) : (
+                    <View style={{ width: 40 }} />
+                )}
             </View>
 
-            <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-                {/* Upload Image Section */}
-                <View style={styles.imageSection}>
-                    <Text style={styles.sectionLabel}>UPLOAD COVER IMAGE</Text>
-                    <TouchableOpacity style={styles.imageUploadBox}>
+            {step === 'selection' ? (
+                <MotiView
+                    from={{ opacity: 0, translateY: 20 }}
+                    animate={{ opacity: 1, translateY: 0 }}
+                    style={styles.selectionView}
+                >
+                    <Text style={styles.selectionHint}>How would you like to start?</Text>
+
+                    <TouchableOpacity
+                        style={styles.selectionOption}
+                        onPress={() => setStep('form')}
+                    >
                         <LinearGradient
-                            colors={['rgba(255,107,53,0.05)', 'rgba(0,0,0,0)']}
-                            style={styles.uploadGradient}
+                            colors={['rgba(255,107,53,0.15)', 'rgba(255,107,53,0.05)']}
+                            style={styles.selectionGradient}
                         >
-                            <View style={styles.cameraCircle}>
-                                <Camera size={28} color="#ff6b35" />
+                            <Plus size={32} color="#ff6b35" />
+                            <View>
+                                <Text style={styles.optionTitle}>START FRESH</Text>
+                                <Text style={styles.optionDesc}>Build a new experience from scratch</Text>
                             </View>
-                            <Text style={styles.uploadText}>Add a photo of your food</Text>
                         </LinearGradient>
                     </TouchableOpacity>
-                </View>
 
-                {/* Info Fields */}
-                <View style={styles.form}>
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.fieldLabel}>EVENT NAME</Text>
-                        <TextInput
-                            style={styles.input}
-                            placeholder="e.g. Midnight Ramen Session"
-                            placeholderTextColor="rgba(255,255,255,0.2)"
-                            value={title}
-                            onChangeText={setTitle}
-                        />
-                    </View>
-
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.fieldLabel}>LOCATION</Text>
-                        <TouchableOpacity style={styles.locationSelector}>
-                            <Text style={styles.locationPlaceholder}>
-                                {locationName || 'Select on map...'}
-                            </Text>
-                            <Map size={20} color="#ff6b35" />
-                        </TouchableOpacity>
-                    </View>
-
-                    {/* Menu Section */}
-                    <View style={styles.menuSection}>
-                        <View style={styles.menuHeader}>
-                            <Text style={styles.fieldLabel}>MENU & PRICING</Text>
-                            <TouchableOpacity style={styles.addBtn} onPress={addMenuItem}>
-                                <Plus size={14} color="#ff6b35" />
-                                <Text style={styles.addBtnText}>ADD ITEM</Text>
+                    {(userTemplates.length > 0 || drafts.length > 0) && (
+                        <View style={styles.templatesSection}>
+                            <Text style={styles.templatesLabel}>USE A TEMPLATE</Text>
+                            <ScrollView showsVerticalScrollIndicator={false}>
+                                {drafts.map((draft) => (
+                                    <TouchableOpacity
+                                        key={draft.id}
+                                        style={styles.templateItem}
+                                        onPress={() => applyTemplate(draft)}
+                                    >
+                                        <View style={styles.templateInfo}>
+                                            <Text style={styles.templateName}>{draft.title}</Text>
+                                            <Text style={styles.templateType}>DRAFT • {new Date(draft.timestamp).toLocaleDateString()}</Text>
+                                        </View>
+                                        <ChevronRight size={18} color="rgba(255,255,255,0.2)" />
+                                    </TouchableOpacity>
+                                ))}
+                                {userTemplates.map((popup) => (
+                                    <TouchableOpacity
+                                        key={popup.id}
+                                        style={styles.templateItem}
+                                        onPress={() => applyTemplate(popup)}
+                                    >
+                                        <View style={styles.templateInfo}>
+                                            <Text style={styles.templateName}>{popup.title}</Text>
+                                            <Text style={styles.templateType}>PREVIOUS EVENT</Text>
+                                        </View>
+                                        <ChevronRight size={18} color="rgba(255,255,255,0.2)" />
+                                    </TouchableOpacity>
+                                ))}
+                            </ScrollView>
+                        </View>
+                    )}
+                </MotiView>
+            ) : (
+                <>
+                    <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
+                        {/* Upload Image Section */}
+                        <View style={styles.imageSection}>
+                            <Text style={styles.sectionLabel}>UPLOAD COVER IMAGE</Text>
+                            <TouchableOpacity style={styles.imageUploadBox}>
+                                <LinearGradient
+                                    colors={['rgba(255,107,53,0.05)', 'rgba(0,0,0,0)']}
+                                    style={styles.uploadGradient}
+                                >
+                                    <View style={styles.cameraCircle}>
+                                        <Camera size={28} color="#ff6b35" />
+                                    </View>
+                                    <Text style={styles.uploadText}>Add a photo of your food</Text>
+                                </LinearGradient>
                             </TouchableOpacity>
                         </View>
 
-                        <View style={styles.menuList}>
-                            <View style={styles.menuTableHead}>
-                                <Text style={styles.headLabel}>ITEM DESCRIPTION</Text>
-                                <Text style={styles.headLabel}>PRICE (USD)</Text>
+                        {/* Info Fields */}
+                        <View style={styles.form}>
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.fieldLabel}>EVENT NAME</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="e.g. Midnight Ramen Session"
+                                    placeholderTextColor="rgba(255,255,255,0.2)"
+                                    value={title}
+                                    onChangeText={setTitle}
+                                />
                             </View>
-                            {menuItems.map((item, index) => (
-                                <View key={item.id} style={styles.menuItemRow}>
-                                    <TextInput
-                                        style={styles.itemInput}
-                                        value={item.name}
-                                        onChangeText={(val) => updateMenuItem(item.id, 'name', val)}
-                                        placeholder="Item name"
-                                        placeholderTextColor="rgba(255,255,255,0.1)"
-                                    />
-                                    <View style={styles.priceColumn}>
-                                        <TextInput
-                                            style={styles.priceInput}
-                                            value={item.price}
-                                            onChangeText={(val) => updateMenuItem(item.id, 'price', val)}
-                                            keyboardType="decimal-pad"
-                                            placeholder="0.00"
-                                            placeholderTextColor="rgba(255,255,255,0.1)"
-                                        />
-                                        {menuItems.length > 2 && (
-                                            <TouchableOpacity onPress={() => removeMenuItem(item.id)} style={styles.removeBtn}>
-                                                <X size={14} color="#f87171" />
-                                            </TouchableOpacity>
-                                        )}
-                                    </View>
-                                </View>
-                            ))}
-                            {menuItems.length < 5 && (
-                                <TouchableOpacity style={styles.addBlankRow} onPress={addMenuItem}>
-                                    <Text style={styles.addBlankText}>Add another item...</Text>
-                                    <Minus size={14} color="rgba(255,255,255,0.1)" />
+
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.fieldLabel}>LOCATION</Text>
+                                <TouchableOpacity style={styles.locationSelector}>
+                                    <Text style={styles.locationPlaceholder}>
+                                        {locationName || 'Select on map...'}
+                                    </Text>
+                                    <Map size={20} color="#ff6b35" />
                                 </TouchableOpacity>
-                            )}
+                            </View>
+
+                            {/* Menu Section */}
+                            <View style={styles.menuSection}>
+                                <View style={styles.menuHeader}>
+                                    <Text style={styles.fieldLabel}>MENU & PRICING</Text>
+                                    <TouchableOpacity style={styles.addBtn} onPress={addMenuItem}>
+                                        <Plus size={14} color="#ff6b35" />
+                                        <Text style={styles.addBtnText}>ADD ITEM</Text>
+                                    </TouchableOpacity>
+                                </View>
+
+                                <View style={styles.menuList}>
+                                    <View style={styles.menuTableHead}>
+                                        <Text style={styles.headLabel}>ITEM DESCRIPTION</Text>
+                                        <Text style={styles.headLabel}>PRICE (USD)</Text>
+                                    </View>
+                                    {menuItems.map((item, index) => (
+                                        <View key={item.id} style={styles.menuItemRow}>
+                                            <TextInput
+                                                style={styles.itemInput}
+                                                value={item.name}
+                                                onChangeText={(val) => updateMenuItem(item.id, 'name', val)}
+                                                placeholder="Item name"
+                                                placeholderTextColor="rgba(255,255,255,0.1)"
+                                            />
+                                            <View style={styles.priceColumn}>
+                                                <TextInput
+                                                    style={styles.priceInput}
+                                                    value={item.price}
+                                                    onChangeText={(val) => updateMenuItem(item.id, 'price', val)}
+                                                    keyboardType="decimal-pad"
+                                                    placeholder="0.00"
+                                                    placeholderTextColor="rgba(255,255,255,0.1)"
+                                                />
+                                                {menuItems.length > 2 && (
+                                                    <TouchableOpacity onPress={() => removeMenuItem(item.id)} style={styles.removeBtn}>
+                                                        <X size={14} color="#f87171" />
+                                                    </TouchableOpacity>
+                                                )}
+                                            </View>
+                                        </View>
+                                    ))}
+                                    {menuItems.length < 5 && (
+                                        <TouchableOpacity style={styles.addBlankRow} onPress={addMenuItem}>
+                                            <Text style={styles.addBlankText}>Add another item...</Text>
+                                            <Minus size={14} color="rgba(255,255,255,0.1)" />
+                                        </TouchableOpacity>
+                                    )}
+                                </View>
+                            </View>
                         </View>
+
+                        <View style={{ height: 120 }} />
+                    </ScrollView>
+
+                    <View style={[styles.footer, { paddingBottom: insets.bottom + 20 }]}>
+                        <TouchableOpacity
+                            style={styles.launchBtn}
+                            onPress={handlePublish}
+                        >
+                            <LinearGradient
+                                colors={['#ff6b35', '#ff9f42']}
+                                style={styles.launchGradient}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                            >
+                                <Text style={styles.launchBtnText}>LAUNCH POP-UP</Text>
+                            </LinearGradient>
+                        </TouchableOpacity>
                     </View>
-                </View>
-
-                <View style={{ height: 120 }} />
-            </ScrollView>
-
-            <View style={[styles.footer, { paddingBottom: insets.bottom + 20 }]}>
-                <TouchableOpacity
-                    style={styles.launchBtn}
-                    onPress={handlePublish}
-                >
-                    <LinearGradient
-                        colors={['#ff6b35', '#ff9f42']}
-                        style={styles.launchGradient}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                    >
-                        <Text style={styles.launchBtnText}>LAUNCH POP-UP</Text>
-                    </LinearGradient>
-                </TouchableOpacity>
-            </View>
+                </>
+            )}
         </SafeAreaView>
     );
 }
@@ -384,5 +486,85 @@ const styles = StyleSheet.create({
         fontSize: 15,
         fontWeight: '900',
         letterSpacing: 1.5,
+    },
+    draftBtn: {
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 4,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.2)',
+    },
+    draftBtnText: {
+        color: '#fff',
+        fontSize: 10,
+        fontWeight: '800',
+        letterSpacing: 1,
+    },
+    selectionView: {
+        flex: 1,
+        padding: 24,
+        gap: 24,
+    },
+    selectionHint: {
+        color: 'rgba(255,255,255,0.3)',
+        fontSize: 12,
+        fontWeight: '600',
+        textAlign: 'center',
+        marginBottom: 8,
+    },
+    selectionOption: {
+        borderRadius: 16,
+        overflow: 'hidden',
+    },
+    selectionGradient: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 24,
+        gap: 20,
+    },
+    optionTitle: {
+        color: '#ff6b35',
+        fontSize: 14,
+        fontWeight: '900',
+        letterSpacing: 1.5,
+    },
+    optionDesc: {
+        color: 'rgba(255,255,255,0.4)',
+        fontSize: 11,
+        fontWeight: '500',
+        marginTop: 4,
+    },
+    templatesSection: {
+        flex: 1,
+        marginTop: 12,
+    },
+    templatesLabel: {
+        color: 'rgba(255,255,255,0.4)',
+        fontSize: 10,
+        fontWeight: '900',
+        letterSpacing: 2,
+        marginBottom: 16,
+    },
+    templateItem: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(255,255,255,0.05)',
+    },
+    templateInfo: {
+        gap: 4,
+    },
+    templateName: {
+        color: '#f1f1f5',
+        fontSize: 14,
+        fontWeight: '700',
+    },
+    templateType: {
+        color: 'rgba(255,107,53,0.5)',
+        fontSize: 9,
+        fontWeight: '800',
+        textTransform: 'uppercase',
     }
 });

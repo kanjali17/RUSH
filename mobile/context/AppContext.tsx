@@ -57,6 +57,7 @@ export interface User {
     password?: string;
     role: string;
     campus_id: string | null;
+    creator_id?: string;
     display_name: string;
     avatar?: string;
     bio?: string;
@@ -94,6 +95,15 @@ export interface Rumor {
     timestamp: string;
 }
 
+export interface Draft {
+    id: string;
+    user_id: string;
+    title: string;
+    location_name: string;
+    menu: PopupMenuItem[];
+    timestamp: string;
+}
+
 export interface AppState {
     currentUser: User | null;
     campuses: any[];
@@ -101,7 +111,8 @@ export interface AppState {
     creators: Creator[];
     popups: Popup[];
     posts: UserPost[];
-    rumors: Rumor[]; // New field
+    rumors: Rumor[];
+    drafts: Draft[]; // New field
     rsvps: any[];
     reviews: any[];
     reports: any[];
@@ -115,7 +126,9 @@ export interface AppContextType extends AppState {
     selectCampus: (campusId: string) => void;
     createPopup: (popup: any) => void;
     createPost: (post: { image_url: string; caption: string }) => void;
-    startRumor: (rumor: { content: string; timeframe: string }) => void; // New action
+    startRumor: (rumor: { content: string; timeframe: string }) => void;
+    saveDraft: (draft: Omit<Draft, 'id' | 'user_id' | 'timestamp'>) => void;
+    deleteDraft: (draftId: string) => void;
     rsvp: (popup_id: string, status: string) => void;
     toggleReminder: (rsvp_id: string) => void;
     cancelRsvp: (popup_id: string) => void;
@@ -187,6 +200,7 @@ const initialState: AppState = {
     ],
     posts: [],
     rumors: [],
+    drafts: [],
     hasLaunched: false,
 };
 
@@ -227,6 +241,21 @@ function appReducer(state: AppState, action: any): AppState {
                 ...state,
                 rumors: [newRumor, ...state.rumors],
                 notifications: [notification, ...state.notifications]
+            };
+        }
+        case 'SAVE_DRAFT': {
+            const newDraft: Draft = {
+                id: 'draft-' + Date.now(),
+                user_id: state.currentUser?.id || 'anonymous',
+                ...action.payload,
+                timestamp: new Date().toISOString(),
+            };
+            return { ...state, drafts: [newDraft, ...state.drafts] };
+        }
+        case 'DELETE_DRAFT': {
+            return {
+                ...state,
+                drafts: state.drafts.filter(d => d.id !== action.payload)
             };
         }
         case 'SET_LAUNCHED':
@@ -470,6 +499,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
         (rumor: { content: string; timeframe: string }) => dispatch({ type: 'START_RUMOR', payload: rumor }),
         []
     );
+    const saveDraft = useCallback(
+        (draft: Omit<Draft, 'id' | 'user_id' | 'timestamp'>) => dispatch({ type: 'SAVE_DRAFT', payload: draft }),
+        []
+    );
+    const deleteDraft = useCallback(
+        (draftId: string) => dispatch({ type: 'DELETE_DRAFT', payload: draftId }),
+        []
+    );
     const rsvp = useCallback(
         (popup_id: string, status: string) =>
             dispatch({ type: 'RSVP', payload: { popup_id, status } }),
@@ -561,6 +598,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         createPopup,
         createPost,
         startRumor,
+        saveDraft,
+        deleteDraft,
         rsvp,
         toggleReminder,
         cancelRsvp,
