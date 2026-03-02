@@ -65,6 +65,13 @@ export default function SignupScreen() {
                         style={styles.continueBtn}
                     />
 
+                    <TouchableOpacity
+                        style={styles.bypassBtn}
+                        onPress={() => router.push('/(tabs)')}
+                    >
+                        <Text style={styles.bypassText}>DEBUG BYPASS (SKIP TO MAP)</Text>
+                    </TouchableOpacity>
+
                     <Text style={styles.termsText}>
                         BY SIGNING UP YOU AGREE TO OUR TERMS
                     </Text>
@@ -81,7 +88,18 @@ const styles = StyleSheet.create({
     },
     content: {
         flex: 1,
-        paddingHorizontal: 30,
+        paddingHorizontal: 20,
+    },
+    bypassBtn: {
+        marginTop: -10,
+        alignItems: 'center',
+        padding: 10,
+    },
+    bypassText: {
+        color: 'rgba(255,107,53,0.3)',
+        fontSize: 10,
+        fontWeight: '800',
+        letterSpacing: 1,
     },
     header: {
         flexDirection: 'row',

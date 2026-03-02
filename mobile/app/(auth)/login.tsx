@@ -99,6 +99,13 @@ export default function LoginScreen() {
                         </LinearGradient>
                     </TouchableOpacity>
 
+                    <TouchableOpacity
+                        style={styles.bypassBtn}
+                        onPress={() => login('alex@utexas.edu', 'password123', 'explorer')}
+                    >
+                        <Text style={styles.bypassText}>DEBUG BYPASS (EXPLO)</Text>
+                    </TouchableOpacity>
+
                     <View style={styles.footer}>
                         <Text style={styles.footerText}>ACCESS RESTRICTED TO MEMBERS</Text>
                         <TouchableOpacity onPress={() => router.push('/(auth)/signup')}>
@@ -258,4 +265,15 @@ const styles = StyleSheet.create({
         fontWeight: '900',
         letterSpacing: 2,
     },
+    bypassBtn: {
+        marginTop: -10,
+        alignItems: 'center',
+        padding: 10,
+    },
+    bypassText: {
+        color: 'rgba(255,255,255,0.15)',
+        fontSize: 10,
+        fontWeight: '800',
+        letterSpacing: 1,
+    }
 });
