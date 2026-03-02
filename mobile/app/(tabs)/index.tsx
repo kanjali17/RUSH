@@ -9,6 +9,8 @@ import { RushCard } from '../../components/rush/RushCard';
 import { useRouter } from 'expo-router';
 import { MotiView, MotiText } from 'moti';
 import { LinearGradient } from 'expo-linear-gradient';
+import { TutorialOverlay } from '../../components/rush/TutorialOverlay';
+import { HelpCircle } from 'lucide-react-native';
 
 export default function MapScreen() {
   const insets = useSafeAreaInsets();
@@ -19,6 +21,7 @@ export default function MapScreen() {
   const [region, setRegion] = useState<any>(null);
   const [activeFilter, setActiveFilter] = useState('LIVE NOW');
   const [loading, setLoading] = useState(true);
+  const [showTutorial, setShowTutorial] = useState(false);
 
   const campus = campuses.find((c) => c.id === currentUser?.campus_id);
 
@@ -96,6 +99,12 @@ export default function MapScreen() {
             <Bell size={20} color="#f1f1f5" strokeWidth={2.5} />
             <View style={styles.activeDot} />
           </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.headerIconButton}
+            onPress={() => setShowTutorial(true)}
+          >
+            <HelpCircle size={20} color="#f1f1f5" strokeWidth={2.5} />
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -121,6 +130,11 @@ export default function MapScreen() {
           <ActivityIndicator size="large" color="#ff6b35" />
         </View>
       )}
+
+      <TutorialOverlay
+        isVisible={showTutorial}
+        onClose={() => setShowTutorial(false)}
+      />
     </View>
   );
 }
