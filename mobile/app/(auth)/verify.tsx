@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, SafeAreaView } from 'react-native';
+import { StyleSheet, View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, SafeAreaView, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Eye, EyeOff, Lock } from 'lucide-react-native';
 import { RushButton } from '../../components/rush/RushButton';
@@ -82,7 +82,14 @@ export default function VerifyScreen() {
 
                     <RushButton
                         title="VERIFY AND CONTINUE"
-                        onPress={() => router.push('/(auth)/vibe')}
+                        onPress={() => {
+                            const isCodeComplete = code.every(digit => digit.trim() !== '');
+                            if (!isCodeComplete || !password.trim()) {
+                                Alert.alert('Error', 'one or more fields are empty');
+                                return;
+                            }
+                            router.push('/(auth)/vibe');
+                        }}
                         style={styles.continueBtn}
                     />
 

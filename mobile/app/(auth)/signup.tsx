@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, SafeAreaView } from 'react-native';
+import { StyleSheet, View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, SafeAreaView, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
 import { RushButton } from '../../components/rush/RushButton';
@@ -55,7 +55,13 @@ export default function SignupScreen() {
 
                     <RushButton
                         title="SEND VERIFICATION CODE"
-                        onPress={() => router.push('/(auth)/verify')}
+                        onPress={() => {
+                            if (!name.trim() || !email.trim()) {
+                                Alert.alert('Error', 'one or more fields are empty');
+                                return;
+                            }
+                            router.push('/(auth)/verify');
+                        }}
                         style={styles.continueBtn}
                     />
 

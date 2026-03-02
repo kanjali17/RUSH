@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, SafeAreaView } from 'react-native';
+import { StyleSheet, View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, SafeAreaView, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useApp } from '../../context/AppContext';
@@ -14,7 +14,11 @@ export default function LoginScreen() {
     const [showPassword, setShowPassword] = useState(false);
 
     const handleLogin = () => {
-        login(email || 'alex@utexas.edu', password || 'password123', 'explorer');
+        if (!email.trim() || !password.trim()) {
+            Alert.alert('Error', 'one or more fields are empty');
+            return;
+        }
+        login(email, password, 'explorer');
     };
 
     return (
