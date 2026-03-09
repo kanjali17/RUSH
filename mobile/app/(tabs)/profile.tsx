@@ -10,7 +10,7 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { currentUser, posts } = useApp();
-  const userPosts = posts.filter(p => p.user_id === currentUser?.id);
+  const userPosts = posts.filter((p: any) => p.user_id === currentUser?.id);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -42,7 +42,7 @@ export default function ProfileScreen() {
             <View style={styles.avatarGlow} />
             <View style={styles.avatarCircle}>
               <Image
-                source={{ uri: currentUser?.profile_photo || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=200' }}
+                source={{ uri: currentUser?.profile_photo_url || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=200' }}
                 style={styles.avatarImage}
               />
             </View>
@@ -54,8 +54,7 @@ export default function ProfileScreen() {
             transition={{ delay: 200 }}
             style={styles.userInfo}
           >
-            <Text style={styles.userName}>{currentUser?.display_name || 'Alex Rush'}</Text>
-            <Text style={styles.userHandle}>@{currentUser?.instagram_handle || 'alex_rush'}</Text>
+            <Text style={styles.userName}>{currentUser?.full_name || 'Alex Rush'}</Text>
             <Text style={styles.userBio}>
               {currentUser?.bio || 'Fueling late night architecture studio sessions. Collector of rare snacks and underground pop-ups.'}
             </Text>
@@ -63,8 +62,8 @@ export default function ProfileScreen() {
 
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>12</Text>
-              <Text style={styles.statLabel}>POPUPS</Text>
+              <Text style={styles.statNumber}>{currentUser?.followers_count || 0}</Text>
+              <Text style={styles.statLabel}>FOLLOWERS</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
@@ -73,7 +72,7 @@ export default function ProfileScreen() {
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>850</Text>
+              <Text style={styles.statNumber}>{currentUser?.following_count || 0}</Text>
               <Text style={styles.statLabel}>FOLLOWING</Text>
             </View>
           </View>

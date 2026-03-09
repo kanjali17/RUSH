@@ -1,14 +1,20 @@
 import React, { useState } from 'react';
 import { StyleSheet, View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, SafeAreaView, Alert } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, Eye, EyeOff, Lock } from 'lucide-react-native';
 import { RushButton } from '../../components/rush/RushButton';
+import { useApp } from '../../context/AppContext';
+import { ActivityIndicator } from 'react-native';
 
 export default function VerifyScreen() {
     const router = useRouter();
+    const { email, name } = useLocalSearchParams<{ email: string, name: string }>();
+    const { resendOtp, verifyOtp } = useApp();
     const [code, setCode] = useState(['', '', '', '']);
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
+    const [isResending, setIsResending] = useState(false);
+    const [isVerifying, setIsVerifying] = useState(false);
 
     const handleCodeChange = (text: string, index: number) => {
         const newCode = [...code];
@@ -55,8 +61,21 @@ export default function VerifyScreen() {
                                 />
                             ))}
                         </View>
-                        <TouchableOpacity style={styles.resendBtn}>
-                            <Text style={styles.resendText}>RESEND CODE</Text>
+                        <TouchableOpacity
+                            style={styles.resendBtn}
+                            onPress={async () => {
+                                if (!email) return;
+                                setIsResending(true);
+                                await resendOtp(email);
+                                setIsResending(false);
+                            }}
+                            disabled={isResending}
+                        >
+                            {isResending ? (
+                                <ActivityIndicator size="small" color="#ff6b35" />
+                            ) : (
+                                <Text style={styles.resendText}>RESEND CODE</Text>
+                            )}
                         </TouchableOpacity>
                     </View>
 
@@ -82,15 +101,32 @@ export default function VerifyScreen() {
 
                     <RushButton
                         title="VERIFY AND CONTINUE"
-                        onPress={() => {
+                        onPress={async () => {
                             const isCodeComplete = code.every(digit => digit.trim() !== '');
                             if (!isCodeComplete || !password.trim()) {
                                 Alert.alert('Error', 'one or more fields are empty');
                                 return;
                             }
-                            router.push('/(auth)/vibe');
+
+                            if (!email) {
+                                Alert.alert('Error', 'Email is missing. Please restart the signup process.');
+                                return;
+                            }
+
+                            setIsVerifying(true);
+                            try {
+                                const token = code.join('');
+                                const { error } = await verifyOtp(email, token);
+
+                                if (!error) {
+                                    router.push('/(auth)/vibe');
+                                }
+                            } finally {
+                                setIsVerifying(false);
+                            }
                         }}
                         style={styles.continueBtn}
+                        loading={isVerifying}
                     />
 
                     <View style={styles.encryptionInfo}>

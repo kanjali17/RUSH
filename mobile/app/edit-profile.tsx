@@ -9,17 +9,15 @@ export default function EditProfileScreen() {
     const router = useRouter();
     const { currentUser, updateProfile } = useApp();
 
-    const [name, setName] = useState(currentUser?.display_name || '');
+    const [name, setName] = useState(currentUser?.full_name || '');
     const [email, setEmail] = useState(currentUser?.email || '');
-    const [insta, setInsta] = useState(currentUser?.instagram_handle || '');
-    const [photo, setPhoto] = useState(currentUser?.profile_photo || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=200');
+    const [photo, setPhoto] = useState(currentUser?.profile_photo_url || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=200');
 
     const handleSave = () => {
         updateProfile({
-            display_name: name,
+            full_name: name,
             email: email,
-            instagram_handle: insta,
-            profile_photo: photo
+            profile_photo_url: photo
         });
         router.back();
     };
@@ -82,20 +80,6 @@ export default function EditProfileScreen() {
                             </View>
                         </View>
 
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.label}>INSTAGRAM HANDLE</Text>
-                            <View style={styles.inputWrapper}>
-                                <Instagram size={18} color="rgba(255,255,255,0.2)" />
-                                <TextInput
-                                    style={styles.input}
-                                    value={insta}
-                                    onChangeText={setInsta}
-                                    placeholder="@handle"
-                                    placeholderTextColor="rgba(255,255,255,0.1)"
-                                    autoCapitalize="none"
-                                />
-                            </View>
-                        </View>
                     </View>
 
                     <View style={{ height: 40 }} />

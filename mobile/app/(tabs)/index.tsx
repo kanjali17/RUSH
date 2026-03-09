@@ -3,7 +3,7 @@ import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, TextInput,
 import MapView, { Marker, UrlTile, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Search, LocateFixed, SlidersHorizontal, X, Flame, Plus, Menu, Search as SearchIcon, Utensils, Bell } from 'lucide-react-native';
-import { useApp, Popup } from '../../context/AppContext';
+import { useApp, Quest } from '../../context/AppContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RushCard } from '../../components/rush/RushCard';
 import { useRouter } from 'expo-router';
@@ -15,7 +15,7 @@ import { HelpCircle } from 'lucide-react-native';
 export default function MapScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { popups, currentUser, campuses } = useApp();
+  const { quests, currentUser, campuses } = useApp();
 
   const [userLocation, setUserLocation] = useState<any>(null);
   const [region, setRegion] = useState<any>(null);
@@ -23,19 +23,18 @@ export default function MapScreen() {
   const [loading, setLoading] = useState(true);
   const [showTutorial, setShowTutorial] = useState(false);
 
-  const campus = campuses.find((c) => c.id === currentUser?.campus_id);
+  const campus = campuses.find((c) => c.campus_id === currentUser?.campus_id);
 
-  const filteredPopups = useMemo(() => {
-    let base = popups.filter(p => !campus || p.campus_id === campus.id);
+  const filteredQuests = useMemo(() => {
+    let base = quests.filter(q => !campus || q.campus_id === campus.campus_id);
     if (activeFilter === 'LIVE NOW') {
-      return base.filter(p => p.status === 'active');
+      return base.filter(q => q.is_live);
     }
     if (activeFilter === 'TRENDING') {
-      // Logic for trending: e.g., high attendance or specific flag
-      return base.filter(p => p.attendance > 40 || p.status === 'active').sort((a, b) => (b.attendance || 0) - (a.attendance || 0));
+      return base.sort((a, b) => (b.stats?.engagement_score || 0) - (a.stats?.engagement_score || 0));
     }
     return base;
-  }, [popups, campus, activeFilter]);
+  }, [quests, campus, activeFilter]);
 
   useEffect(() => {
     (async () => {
@@ -61,19 +60,19 @@ export default function MapScreen() {
         provider={PROVIDER_GOOGLE}
         style={styles.map}
         initialRegion={{
-          latitude: campus?.lat || 30.2849,
-          longitude: campus?.lng || -97.7341,
+          latitude: campus?.location.lat || 30.2849,
+          longitude: campus?.location.lng || -97.7341,
           latitudeDelta: 0.02,
           longitudeDelta: 0.02,
         }}
         region={region}
         customMapStyle={DARK_MAP_STYLE}
       >
-        {filteredPopups.map((popup) => (
+        {filteredQuests.map((quest) => (
           <Marker
-            key={popup.id}
-            coordinate={{ latitude: popup.lat, longitude: popup.lng }}
-            onPress={() => router.push(`/popup/${popup.id}`)}
+            key={quest.quest_id}
+            coordinate={{ latitude: quest.location?.lat || 0, longitude: quest.location?.lng || 0 }}
+            onPress={() => router.push(`/popup/${quest.quest_id}`)}
           >
             <View style={styles.markerContainer}>
               <View style={[styles.markerGlow, activeFilter === 'TRENDING' && { backgroundColor: '#ff9f42', opacity: 0.5 }]} />

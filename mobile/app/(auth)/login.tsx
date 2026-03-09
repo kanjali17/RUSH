@@ -13,12 +13,12 @@ export default function LoginScreen() {
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
 
-    const handleLogin = () => {
+    const handleLogin = async () => {
         if (!email.trim() || !password.trim()) {
             Alert.alert('Error', 'one or more fields are empty');
             return;
         }
-        login(email, password, 'explorer');
+        await login(email, password);
     };
 
     return (
@@ -101,7 +101,7 @@ export default function LoginScreen() {
 
                     <TouchableOpacity
                         style={styles.bypassBtn}
-                        onPress={() => login('alex@utexas.edu', 'password123', 'explorer')}
+                        onPress={() => login('alex@utexas.edu', 'password123')}
                     >
                         <Text style={styles.bypassText}>DEBUG BYPASS (EXPLO)</Text>
                     </TouchableOpacity>

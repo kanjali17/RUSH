@@ -11,7 +11,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 export default function CreateEventScreen() {
     const insets = useSafeAreaInsets();
     const router = useRouter();
-    const { createPopup, currentUser, popups, drafts, saveDraft } = useApp();
+    const { createQuest, currentUser, quests } = useApp();
 
     const [step, setStep] = useState<'selection' | 'form'>('selection');
     const [title, setTitle] = useState('');
@@ -34,54 +34,34 @@ export default function CreateEventScreen() {
     };
 
     const handleSaveDraft = () => {
-        if (!title.trim()) {
-            alert('Please enter a title to save a draft');
-            return;
-        }
-        saveDraft({
-            title,
-            location_name: locationName,
-            menu: menuItems.map(item => ({
-                id: item.id,
-                name: item.name,
-                price: parseFloat(item.price) || 0,
-                description: ''
-            }))
-        });
-        alert('Draft saved!');
-        router.back();
+        alert('Draft saving is currently disabled in this version.');
     };
 
     const applyTemplate = (source: any) => {
         setTitle(source.title);
         setLocationName(source.location_name);
-        setMenuItems(source.menu.map((m: any) => ({
-            id: m.id,
+        setMenuItems(source.menu_items?.map((m: any) => ({
+            id: m.menu_item_id,
             name: m.name,
             price: m.price.toString()
-        })));
+        })) || []);
         setStep('form');
     };
 
-    const userTemplates = popups.filter(p => p.creator_id === currentUser?.id || (currentUser?.role === 'creator' && p.creator_id === currentUser?.id));
-    // Filter by actual creator_id if available, or just fallback to user's popups
+    const userTemplates = quests.filter(q => q.creator_id === currentUser?.id);
 
-    const handlePublish = () => {
-        createPopup({
-            creator_id: currentUser?.creator_id || 'curr_user',
-            campus_id: currentUser?.campus_id || 'ut_austin',
+    const handlePublish = async () => {
+        await createQuest({
             title,
             location_name: locationName,
-            time_range: '10:30 PM',
+            start_time: new Date().toISOString(),
+            end_time: new Date(Date.now() + 3 * 3600000).toISOString(),
             description: '',
-            lat: 30.2849,
-            lng: -97.7341,
-            status: 'upcoming',
-            attendance: 0,
-            menu: menuItems.map(item => ({
-                id: item.id,
+            location: { lat: 30.2849, lng: -97.7341 },
+            menu_items: menuItems.map(item => ({
                 name: item.name,
-                price: parseFloat(item.price) || 0
+                price: parseFloat(item.price) || 0,
+                description: ''
             }))
         });
         router.push('/(tabs)');
@@ -127,38 +107,41 @@ export default function CreateEventScreen() {
                         </LinearGradient>
                     </TouchableOpacity>
 
-                    {(userTemplates.length > 0 || drafts.length > 0) && (
-                        <View style={styles.templatesSection}>
-                            <Text style={styles.templatesLabel}>USE A TEMPLATE</Text>
-                            <ScrollView showsVerticalScrollIndicator={false}>
-                                {drafts.map((draft) => (
-                                    <TouchableOpacity
-                                        key={draft.id}
-                                        style={styles.templateItem}
-                                        onPress={() => applyTemplate(draft)}
-                                    >
-                                        <View style={styles.templateInfo}>
-                                            <Text style={styles.templateName}>{draft.title}</Text>
-                                            <Text style={styles.templateType}>DRAFT • {new Date(draft.timestamp).toLocaleDateString()}</Text>
-                                        </View>
-                                        <ChevronRight size={18} color="rgba(255,255,255,0.2)" />
-                                    </TouchableOpacity>
-                                ))}
-                                {userTemplates.map((popup) => (
-                                    <TouchableOpacity
-                                        key={popup.id}
-                                        style={styles.templateItem}
-                                        onPress={() => applyTemplate(popup)}
-                                    >
-                                        <View style={styles.templateInfo}>
-                                            <Text style={styles.templateName}>{popup.title}</Text>
-                                            <Text style={styles.templateType}>PREVIOUS EVENT</Text>
-                                        </View>
-                                        <ChevronRight size={18} color="rgba(255,255,255,0.2)" />
-                                    </TouchableOpacity>
-                                ))}
-                            </ScrollView>
-                        </View>
+                    {userTemplates.length === 0 ? (
+                        <MotiView
+                            from={{ opacity: 0, translateY: 10 }}
+                            animate={{ opacity: 1, translateY: 0 }}
+                            style={styles.emptyCard}
+                        >
+                            <LinearGradient
+                                colors={['rgba(255,255,255,0.03)', 'rgba(255,255,255,0.01)']}
+                                style={styles.emptyGradient}
+                            >
+                                <Info size={24} color="rgba(255,255,255,0.2)" />
+                                <Text style={styles.emptyText}>No previous events to use as origin.</Text>
+                            </LinearGradient>
+                        </MotiView>
+                    ) : (
+                        <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            contentContainerStyle={styles.templateList}
+                        >
+                            {userTemplates.map((source) => (
+                                <TouchableOpacity
+                                    key={source.quest_id}
+                                    style={styles.templateCard}
+                                    onPress={() => applyTemplate(source)}
+                                >
+                                    <LinearGradient
+                                        colors={['rgba(255,255,255,0.08)', 'rgba(255,255,255,0.03)']}
+                                        style={styles.templateGradient}
+                                    />
+                                    <Text style={styles.templateTitle} numberOfLines={1}>{source.title}</Text>
+                                    <Text style={styles.templateDetail}>{source.location_name}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
                     )}
                 </MotiView>
             ) : (
@@ -547,24 +530,72 @@ const styles = StyleSheet.create({
     },
     templateItem: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
         alignItems: 'center',
-        paddingVertical: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: 'rgba(255,255,255,0.05)',
+        padding: 16,
+        backgroundColor: 'rgba(255,255,255,0.03)',
+        borderRadius: 12,
+        marginBottom: 12,
     },
     templateInfo: {
-        gap: 4,
+        flex: 1,
     },
     templateName: {
         color: '#f1f1f5',
-        fontSize: 14,
-        fontWeight: '700',
+        fontSize: 16,
+        fontFamily: 'Outfit-Medium',
+        marginBottom: 4,
     },
     templateType: {
-        color: 'rgba(255,107,53,0.5)',
-        fontSize: 9,
-        fontWeight: '800',
+        color: 'rgba(241,241,245,0.5)',
+        fontSize: 12,
+        fontFamily: 'Outfit-Regular',
         textTransform: 'uppercase',
-    }
+    },
+    emptyCard: {
+        marginTop: 20,
+        borderRadius: 16,
+        overflow: 'hidden',
+    },
+    emptyGradient: {
+        padding: 40,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.05)',
+        borderStyle: 'dashed',
+        borderRadius: 16,
+    },
+    emptyText: {
+        color: 'rgba(241,241,245,0.4)',
+        fontSize: 14,
+        fontFamily: 'Outfit-Regular',
+        marginTop: 12,
+        textAlign: 'center',
+    },
+    templateList: {
+        paddingVertical: 10,
+    },
+    templateCard: {
+        width: 160,
+        height: 100,
+        marginRight: 12,
+        borderRadius: 16,
+        padding: 16,
+        justifyContent: 'flex-end',
+        overflow: 'hidden',
+    },
+    templateGradient: {
+        ...StyleSheet.absoluteFillObject,
+    },
+    templateTitle: {
+        color: '#f1f1f5',
+        fontSize: 15,
+        fontFamily: 'Outfit-Bold',
+        marginBottom: 4,
+    },
+    templateDetail: {
+        color: 'rgba(241,241,245,0.6)',
+        fontSize: 11,
+        fontFamily: 'Outfit-Regular',
+    },
 });

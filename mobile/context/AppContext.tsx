@@ -1,82 +1,71 @@
-import { createContext, useContext, useReducer, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useReducer, useCallback, ReactNode, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
+import { Alert } from 'react-native';
+import { X, Clock, MapPin, Users, Heart, Share2, ChevronRight, Zap, ArrowRight, Flame } from 'lucide-react-native';
+// Keep seedData for fallbacks or initial development if tables are empty
 import {
     campuses as seedCampuses,
-    users as seedUsers,
-    creators as seedCreators,
-    popups as seedPopups,
-    rsvps as seedRsvps,
-    reviews as seedReviews,
-    reports as seedReports,
 } from '../data/seedData';
 
-export interface PopupMenuItem {
-    id: string;
+export interface MenuItem {
+    menu_item_id: string;
+    quest_id: string;
     name: string;
     description: string;
     price: number;
+    image_url?: string;
+    is_sold_out: boolean;
 }
 
-export interface Popup {
-    id: string;
+export interface Quest {
+    quest_id: string;
     creator_id: string;
     campus_id: string;
     title: string;
     description?: string;
+    category?: string;
+    vibe_tag?: string[];
+    flyer_image_url?: string;
+    start_time: string;
+    end_time: string;
     location_name: string;
-    lat: number;
-    lng: number;
-    date?: string;
-    time_range?: string;
-    status: 'upcoming' | 'active' | 'past';
-    attendance: number;
-    capacity?: number;
-    menu?: PopupMenuItem[];
-    image_url?: string;
-    // Legacy/Seed fields
-    food_type?: string;
-    dietary_tags?: string[];
-    start_time?: string;
-    end_time?: string;
-    start_date?: string;
+    location: { lat: number; lng: number }; // Transformed from PostGIS geography
+    is_live: boolean;
+    is_cancelled: boolean;
+    capacity_limit?: number;
+    price_range_min?: number;
+    price_range_max?: number;
+    // Computed/Joined
+    stats?: QuestStats;
+    menu_items?: MenuItem[];
 }
 
-export interface Notification {
-    id: string;
-    user_id: string;
-    type: 'EVENT_FOLLOW' | 'RSVP_REMINDER';
-    title: string;
-    message: string;
-    timestamp: string;
-    read: boolean;
-    data?: any;
+export interface QuestStats {
+    quest_id: string;
+    rsvp_count: number;
+    view_count: number;
+    rumor_count: number;
+    engagement_score: number;
+}
+
+export interface Campus {
+    campus_id: string;
+    campus_name: string;
+    city: string;
+    state: string;
+    location: { lat: number; lng: number };
+    boundary_polygon?: any;
 }
 
 export interface User {
-    id: string;
+    id: string; // Changed from user_id to id to match Supabase 'profiles' convention
+    full_name: string;
     email: string;
-    password?: string;
-    role: string;
     campus_id: string | null;
-    creator_id?: string;
-    display_name: string;
-    avatar?: string;
+    profile_photo_url?: string;
     bio?: string;
-    following: string[];
-    instagram_handle?: string;
-    profile_photo?: string;
-    interests?: string[];
-    quiz_answers?: any;
-}
-
-export interface Creator {
-    id: string;
-    user_id: string;
-    name: string;
-    bio: string;
-    avatar: string;
-    followers: string[];
-    email?: string;
-    instagram_handle?: string;
+    followers_count: number;
+    following_count: number;
 }
 
 export interface UserPost {
@@ -88,380 +77,119 @@ export interface UserPost {
 }
 
 export interface Rumor {
-    id: string;
-    user_id: string;
-    content: string;
-    timeframe: string;
+    rumor_id: string;
+    creator_id: string;
+    quest_id?: string | null;
+    content_text: string;
+    media_url?: string;
+    media_type?: 'image' | 'video';
+    expires_at?: string;
     timestamp: string;
 }
 
-export interface Draft {
-    id: string;
+export interface RSVP {
+    rsvp_id: string;
+    quest_id: string;
     user_id: string;
-    title: string;
-    location_name: string;
-    menu: PopupMenuItem[];
-    timestamp: string;
+    status: 'going' | 'interested' | 'cancelled';
+    created_at: string;
+}
+
+export interface Follow {
+    follower_id: string;
+    following_id: string;
+    created_at: string;
+}
+
+export interface Notification {
+    notification_id: string;
+    recipient_user_id: string;
+    type: string;
+    reference_id?: string;
+    is_read: boolean;
+    created_at: string;
+    title?: string; // App-side computed
+    message?: string; // App-side computed
 }
 
 export interface AppState {
     currentUser: User | null;
-    campuses: any[];
-    users: User[];
-    creators: Creator[];
-    popups: Popup[];
+    campuses: Campus[];
+    profiles: User[];
+    quests: Quest[];
     posts: UserPost[];
     rumors: Rumor[];
-    drafts: Draft[]; // New field
-    rsvps: any[];
-    reviews: any[];
-    reports: any[];
+    rsvps: RSVP[];
+    follows: Follow[];
     notifications: Notification[];
     hasLaunched: boolean;
+    loading: boolean;
 }
 
 export interface AppContextType extends AppState {
-    login: (email: string, password: string, role: string) => void;
-    logout: () => void;
+    login: (email: string, password: string) => Promise<{ error: any }>;
+    signup: (email: string, password: string, name: string, selectedCampusId: string | null) => Promise<{ error: any }>;
+    logout: () => Promise<void>;
     selectCampus: (campusId: string) => void;
-    createPopup: (popup: any) => void;
-    createPost: (post: { image_url: string; caption: string }) => void;
-    startRumor: (rumor: { content: string; timeframe: string }) => void;
-    saveDraft: (draft: Omit<Draft, 'id' | 'user_id' | 'timestamp'>) => void;
-    deleteDraft: (draftId: string) => void;
-    rsvp: (popup_id: string, status: string) => void;
-    toggleReminder: (rsvp_id: string) => void;
-    cancelRsvp: (popup_id: string) => void;
-    addReview: (review: any) => void;
-    addReport: (report: any) => void;
-    followCreator: (creatorId: string) => void;
-    setAttendance: (popup_id: string, count: number) => void;
-    updateProfile: (profileData: any) => void;
-    getCreator: (creatorId: string) => Creator | undefined;
-    getPopupRsvps: (popupId: string) => any[];
-    hasLaunched: boolean;
-    setHasLaunched: (val: boolean) => void;
-    getPopupReviews: (popupId: string) => any[];
-    getUserRsvp: (popupId: string) => any;
-    getAvgRating: (popupId: string) => number;
-    getTrendingScore: (popup: any) => number;
-    markNotificationRead: (notificationId: string) => void;
+    createQuest: (quest: any) => Promise<void>;
+    createPost: (post: { image_url: string; caption: string }) => Promise<{ error: any }>;
+    startRumor: (rumor: any) => Promise<void>;
+    rsvp: (quest_id: string, status: 'going' | 'interested' | 'cancelled') => Promise<void>;
+    cancelRsvp: (quest_id: string) => Promise<void>;
+    followUser: (following_id: string) => Promise<void>;
+    updateProfile: (profileData: Partial<User>) => Promise<void>;
+    getQuestStats: (quest_id: string) => QuestStats | undefined;
+    getQuestRsvps: (quest_id: string) => RSVP[];
+    setHasLaunched: (value: boolean) => void;
+    resendOtp: (email: string) => Promise<{ error: any }>;
+    verifyOtp: (email: string, token: string) => Promise<{ error: any }>;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
 
 const initialState: AppState = {
     currentUser: null,
-    campuses: seedCampuses,
-    users: seedUsers as any,
-    creators: seedCreators as any,
-    popups: seedPopups.map((p, i) => {
-        const popup: Popup = {
-            ...p,
-            status: p.status as any,
-            description: p.food_type, // Fallback
-            date: p.start_date,
-            time_range: `${p.start_time} - ${p.end_time}`,
-            capacity: 60,
-            menu: i === 0 ? [
-                { id: 'm1', name: 'Truffle Infused Grains', price: 14, description: 'Wild forest mushrooms, essence of white truffle' },
-                { id: 'm2', name: 'Seared Seasonal Veggies', price: 12, description: 'Farm-to-table root vegetables, herb charcoal' },
-                { id: 'm3', name: 'Citrus Glaze Reduction', price: 4, description: 'Aged balsamic, blood orange zest' }
-            ] : [
-                { id: 'mx', name: 'Standard Bowl', price: 12, description: 'Delicious ingredients mixed perfectly' }
-            ]
-        };
-        return popup;
-    }),
-    rsvps: seedRsvps,
-    reviews: seedReviews,
-    reports: seedReports,
-    notifications: [
-        {
-            id: 'n1',
-            user_id: 'user-1',
-            type: 'EVENT_FOLLOW',
-            title: 'New Event: Taco Tuesday',
-            message: "Maria's Kitchen just posted a new event at Gregory Gym Plaza!",
-            timestamp: new Date().toISOString(),
-            read: false,
-            data: { popup_id: 'popup-1' }
-        },
-        {
-            id: 'n2',
-            user_id: 'user-1',
-            type: 'RSVP_REMINDER',
-            title: 'RSVP Reminder',
-            message: 'Your RSVP for Acai Morning is in 1 hour!',
-            timestamp: new Date().toISOString(),
-            read: false,
-            data: { popup_id: 'popup-3' }
-        }
-    ],
+    campuses: [],
+    profiles: [],
+    quests: [],
     posts: [],
     rumors: [],
-    drafts: [],
+    rsvps: [],
+    follows: [],
+    notifications: [],
     hasLaunched: false,
+    loading: true,
 };
 
 function appReducer(state: AppState, action: any): AppState {
     switch (action.type) {
-        case 'CREATE_POST': {
-            const newPost: UserPost = {
-                id: 'post-' + Date.now(),
-                user_id: state.currentUser?.id || 'anonymous',
-                image_url: action.payload.image_url,
-                caption: action.payload.caption,
-                timestamp: new Date().toISOString(),
-            };
-            return { ...state, posts: [newPost, ...state.posts] };
-        }
-        case 'START_RUMOR': {
-            const newRumor: Rumor = {
-                id: 'rumor-' + Date.now(),
-                user_id: state.currentUser?.id || 'anonymous',
-                content: action.payload.content,
-                timeframe: action.payload.timeframe,
-                timestamp: new Date().toISOString(),
-            };
-
-            // Broadcast to followers (mocking this by adding a notification for the current user too for visibility)
-            const notification: Notification = {
-                id: 'n-rumor-' + Date.now(),
-                user_id: state.currentUser?.id || 'anonymous',
-                type: 'EVENT_FOLLOW',
-                title: '🕵️ RUMOR DETECTED',
-                message: `${state.currentUser?.display_name || 'A creator'} just teased a drop: "${action.payload.content}" happening ${action.payload.timeframe}`,
-                timestamp: new Date().toISOString(),
-                read: false,
-                data: { rumor_id: newRumor.id }
-            };
-
-            return {
-                ...state,
-                rumors: [newRumor, ...state.rumors],
-                notifications: [notification, ...state.notifications]
-            };
-        }
-        case 'SAVE_DRAFT': {
-            const newDraft: Draft = {
-                id: 'draft-' + Date.now(),
-                user_id: state.currentUser?.id || 'anonymous',
-                ...action.payload,
-                timestamp: new Date().toISOString(),
-            };
-            return { ...state, drafts: [newDraft, ...state.drafts] };
-        }
-        case 'DELETE_DRAFT': {
-            return {
-                ...state,
-                drafts: state.drafts.filter(d => d.id !== action.payload)
-            };
-        }
+        case 'SET_LOADING':
+            return { ...state, loading: action.payload };
+        case 'SET_DATA':
+            return { ...state, ...action.payload, loading: false };
+        case 'SET_USER':
+            return { ...state, currentUser: action.payload };
+        case 'SET_QUESTS':
+            return { ...state, quests: action.payload };
+        case 'SET_PROFILES':
+            return { ...state, profiles: action.payload };
+        case 'SET_RSVPS':
+            return { ...state, rsvps: action.payload };
+        case 'SET_FOLLOWS':
+            return { ...state, follows: action.payload };
+        case 'CREATE_POST':
+            return { ...state, posts: [action.payload, ...state.posts] };
+        case 'START_RUMOR':
+            return { ...state, rumors: [action.payload, ...state.rumors] };
         case 'SET_LAUNCHED':
             return { ...state, hasLaunched: action.payload };
-        case 'LOGIN': {
-            const { email, password, role } = action.payload;
-            const existing = state.users.find(
-                (u) => u.email === email && u.password === password
-            );
-            if (existing) {
-                return { ...state, currentUser: existing };
-            }
-            const newUser = {
-                id: 'user-' + Date.now(),
-                email,
-                password,
-                role,
-                campus_id: null,
-                display_name: email.split('@')[0],
-                following: [],
-            };
-            if (role === 'creator') {
-                (newUser as any).creator_id = 'creator-' + Date.now();
-            }
-            const newCreators =
-                role === 'creator'
-                    ? [
-                        ...state.creators,
-                        {
-                            id: (newUser as any).creator_id,
-                            user_id: newUser.id,
-                            name: newUser.display_name + "'s Kitchen",
-                            bio: 'New creator on campus!',
-                            avatar: '👨‍🍳',
-                            followers: [],
-                        },
-                    ]
-                    : state.creators;
-            return {
-                ...state,
-                currentUser: newUser,
-                users: [...state.users, newUser],
-                creators: newCreators,
-            };
-        }
-
         case 'LOGOUT':
-            return { ...state, currentUser: null };
-
+            return { ...state, currentUser: null, loading: false };
         case 'SELECT_CAMPUS':
             return {
                 ...state,
-                currentUser: { ...state.currentUser, campus_id: action.payload } as any,
+                currentUser: state.currentUser ? { ...state.currentUser, campus_id: action.payload } : null,
             };
-
-        case 'CREATE_POPUP': {
-            const popup = {
-                ...action.payload,
-                id: 'popup-' + Date.now(),
-                attendance: 0,
-                status: 'upcoming',
-            };
-            return { ...state, popups: [...state.popups, popup] };
-        }
-
-        case 'RSVP': {
-            const { popup_id, status } = action.payload;
-            const existingIdx = state.rsvps.findIndex(
-                (r) => r.user_id === state.currentUser?.id && r.popup_id === popup_id
-            );
-            if (existingIdx >= 0) {
-                const updated = [...state.rsvps];
-                updated[existingIdx] = { ...updated[existingIdx], status };
-                return { ...state, rsvps: updated };
-            }
-            return {
-                ...state,
-                rsvps: [
-                    ...state.rsvps,
-                    {
-                        id: 'rsvp-' + Date.now(),
-                        user_id: state.currentUser?.id,
-                        popup_id,
-                        status,
-                        reminder: false,
-                    },
-                ],
-            };
-        }
-
-        case 'TOGGLE_REMINDER': {
-            const { rsvp_id } = action.payload;
-            return {
-                ...state,
-                rsvps: state.rsvps.map((r) =>
-                    r.id === rsvp_id ? { ...r, reminder: !r.reminder } : r
-                ),
-            };
-        }
-
-        case 'CANCEL_RSVP': {
-            const { popup_id } = action.payload;
-            return {
-                ...state,
-                rsvps: state.rsvps.filter(
-                    (r) =>
-                        !(r.user_id === state.currentUser?.id && r.popup_id === popup_id)
-                ),
-            };
-        }
-
-        case 'ADD_REVIEW': {
-            const review = {
-                ...action.payload,
-                id: 'review-' + Date.now(),
-                user_id: state.currentUser?.id,
-            };
-            return { ...state, reviews: [...state.reviews, review] };
-        }
-
-        case 'ADD_REPORT': {
-            const report = {
-                ...action.payload,
-                id: 'report-' + Date.now(),
-                user_id: state.currentUser?.id,
-            };
-            return { ...state, reports: [...state.reports, report] };
-        }
-
-        case 'FOLLOW_CREATOR': {
-            const user = state.currentUser;
-            if (!user) return state;
-
-            const isFollowing = user.following.includes(action.payload);
-            const updatedFollowing = isFollowing
-                ? user.following.filter((id) => id !== action.payload)
-                : [...user.following, action.payload];
-
-            const updatedUser = { ...user, following: updatedFollowing };
-            const updatedCreators = state.creators.map((c) =>
-                c.id === action.payload
-                    ? {
-                        ...c,
-                        followers: isFollowing
-                            ? c.followers.filter((fid) => fid !== user.id)
-                            : [...c.followers, user.id]
-                    }
-                    : c
-            );
-            return {
-                ...state,
-                currentUser: updatedUser as any,
-                creators: updatedCreators as any,
-                users: state.users.map((u) => u.id === user.id ? updatedUser : u)
-            };
-        }
-
-        case 'SET_ATTENDANCE': {
-            const { popup_id, count } = action.payload;
-            return {
-                ...state,
-                popups: state.popups.map((p) =>
-                    p.id === popup_id ? { ...p, attendance: count, status: 'past' } : p
-                ),
-            };
-        }
-
-        case 'UPDATE_PROFILE': {
-            const { display_name, bio, avatar, interests, quiz_answers, profile_photo, instagram_handle, creator_name, creator_bio, creator_email, creator_insta } = action.payload;
-            const user = state.currentUser as any;
-            const updatedUser = {
-                ...user,
-                display_name: display_name || user?.display_name,
-                bio: bio !== undefined ? bio : user?.bio,
-                avatar: avatar || user?.avatar,
-                interests: interests || user?.interests || [],
-                quiz_answers: quiz_answers || user?.quiz_answers || {},
-                profile_photo: profile_photo !== undefined ? profile_photo : user?.profile_photo,
-                instagram_handle: instagram_handle !== undefined ? instagram_handle : user?.instagram_handle,
-                email: action.payload.email || user?.email,
-            };
-            let updatedCreators = state.creators;
-            if (user?.role === 'creator' && user?.creator_id) {
-                updatedCreators = state.creators.map((c) =>
-                    c.id === user.creator_id
-                        ? {
-                            ...c,
-                            name: creator_name || c.name,
-                            bio: creator_bio !== undefined ? creator_bio : c.bio,
-                            email: creator_email || c.email,
-                            instagram_handle: creator_insta || c.instagram_handle
-                        }
-                        : c
-                );
-            }
-            return { ...state, currentUser: updatedUser as any, creators: updatedCreators };
-        }
-
-        case 'MARK_NOTIFICATION_READ': {
-            return {
-                ...state,
-                notifications: state.notifications.map((n) =>
-                    n.id === action.payload ? { ...n, read: true } : n
-                ),
-            };
-        }
         default:
             return state;
     }
@@ -470,153 +198,297 @@ function appReducer(state: AppState, action: any): AppState {
 export function AppProvider({ children }: { children: ReactNode }) {
     const [state, dispatch] = useReducer(appReducer, initialState);
 
-    const login = useCallback(
-        (email: string, password: string, role: string) =>
-            dispatch({ type: 'LOGIN', payload: { email, password, role } }),
-        []
-    );
+    const fetchInitialData = useCallback(async () => {
+        dispatch({ type: 'SET_LOADING', payload: true });
+        try {
+            const [
+                { data: quests },
+                { data: campuses },
+                { data: profiles },
+                { data: posts },
+                { data: rsvps },
+                { data: follows },
+                { data: rumors },
+                { data: notifications }
+            ] = await Promise.all([
+                supabase.from('quests').select('*, stats:quest_stats(*), menu_items(*)'),
+                supabase.from('campuses').select('*'),
+                supabase.from('profiles').select('*'),
+                supabase.from('posts').select('*').order('timestamp', { ascending: false }),
+                supabase.from('rsvps').select('*'),
+                supabase.from('follows').select('*'),
+                supabase.from('rumors').select('*').order('created_at', { ascending: false }),
+                supabase.from('notifications').select('*').order('created_at', { ascending: false })
+            ]);
+
+            dispatch({
+                type: 'SET_DATA',
+                payload: {
+                    quests: quests || [],
+                    campuses: campuses || [],
+                    profiles: profiles || [],
+                    posts: posts || [],
+                    rsvps: rsvps || [],
+                    follows: follows || [],
+                    rumors: rumors || [],
+                    notifications: notifications || []
+                }
+            });
+        } catch (error: any) {
+            console.error('Error fetching initial data:', error);
+            // Non-blocking warning for specific PostgREST errors (missing table)
+            if (error?.code !== 'PGRST204' && error?.code !== 'PGRST205') {
+                // console.log("Silent error for missing table during init");
+            }
+        } finally {
+            dispatch({ type: 'SET_LOADING', payload: false });
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchInitialData();
+
+        // Listen for auth changes
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', user.id)
+                    .single();
+                dispatch({ type: 'SET_USER', payload: profile });
+            } else {
+                dispatch({ type: 'SET_USER', payload: null });
+            }
+        });
+
+        return () => subscription.unsubscribe();
+    }, [fetchInitialData]);
+
+    const login = useCallback(async (email: string, password: string) => {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) Alert.alert('Login Error', error.message);
+        return { error };
+    }, []);
+
+    const signup = useCallback(async (email: string, password: string, name: string, selectedCampusId: string | null) => {
+        const { error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+                data: {
+                    full_name: name,
+                    campus_id: selectedCampusId
+                }
+            }
+        });
+
+        if (error) {
+            Alert.alert('Signup Error', error.message);
+            return { error };
+        }
+
+        return { error: null };
+    }, []);
+
+    const logout = useCallback(async () => {
+        await supabase.auth.signOut();
+        dispatch({ type: 'LOGOUT' });
+    }, []);
+
     const setHasLaunched = useCallback(
         (val: boolean) => dispatch({ type: 'SET_LAUNCHED', payload: val }),
         []
     );
-    const logout = useCallback(() => {
-        dispatch({ type: 'LOGOUT' });
-        setHasLaunched(false); // Reset launch state on logout as well? User said "every time you open the app"
-    }, [setHasLaunched]);
     const selectCampus = useCallback(
         (campusId: string) => dispatch({ type: 'SELECT_CAMPUS', payload: campusId }),
         []
     );
-    const createPopup = useCallback(
-        (popup: any) => dispatch({ type: 'CREATE_POPUP', payload: popup }),
-        []
-    );
-    const createPost = useCallback(
-        (post: { image_url: string; caption: string }) => dispatch({ type: 'CREATE_POST', payload: post }),
-        []
-    );
-    const startRumor = useCallback(
-        (rumor: { content: string; timeframe: string }) => dispatch({ type: 'START_RUMOR', payload: rumor }),
-        []
-    );
-    const saveDraft = useCallback(
-        (draft: Omit<Draft, 'id' | 'user_id' | 'timestamp'>) => dispatch({ type: 'SAVE_DRAFT', payload: draft }),
-        []
-    );
-    const deleteDraft = useCallback(
-        (draftId: string) => dispatch({ type: 'DELETE_DRAFT', payload: draftId }),
-        []
-    );
-    const rsvp = useCallback(
-        (popup_id: string, status: string) =>
-            dispatch({ type: 'RSVP', payload: { popup_id, status } }),
-        []
-    );
-    const toggleReminder = useCallback(
-        (rsvp_id: string) =>
-            dispatch({ type: 'TOGGLE_REMINDER', payload: { rsvp_id } }),
-        []
-    );
-    const cancelRsvp = useCallback(
-        (popup_id: string) =>
-            dispatch({ type: 'CANCEL_RSVP', payload: { popup_id } }),
-        []
-    );
-    const addReview = useCallback(
-        (review: any) => dispatch({ type: 'ADD_REVIEW', payload: review }),
-        []
-    );
-    const addReport = useCallback(
-        (report: any) => dispatch({ type: 'ADD_REPORT', payload: report }),
-        []
-    );
-    const followCreator = useCallback(
-        (creatorId: string) => dispatch({ type: 'FOLLOW_CREATOR', payload: creatorId }),
-        []
-    );
-    const setAttendance = useCallback(
-        (popup_id: string, count: number) =>
-            dispatch({ type: 'SET_ATTENDANCE', payload: { popup_id, count } }),
-        []
-    );
-    const updateProfile = useCallback(
-        (profileData: any) => dispatch({ type: 'UPDATE_PROFILE', payload: profileData }),
-        []
+    const createQuest = useCallback(async (quest: any) => {
+        if (!state.currentUser) return;
+        const { data, error } = await supabase
+            .from('quests')
+            .insert([{
+                ...quest,
+                creator_id: state.currentUser?.id,
+                campus_id: state.currentUser?.campus_id,
+                is_live: true,
+                is_cancelled: false
+            }])
+            .select('*, stats:quest_stats(*), menu_items(*)')
+            .single();
+
+        if (error) {
+            Alert.alert('Error', 'Failed to create quest: ' + error.message);
+        } else {
+            dispatch({ type: 'SET_DATA', payload: { ...state, quests: [data, ...state.quests] } });
+        }
+    }, [state]);
+
+    const createPost = useCallback(async (post: { image_url: string; caption: string }) => {
+        if (!state.currentUser) return { error: { message: 'No user logged in' } };
+        const { data, error } = await supabase
+            .from('posts')
+            .insert([{
+                ...post,
+                user_id: state.currentUser.id,
+                timestamp: new Date().toISOString()
+            }])
+            .select()
+            .single();
+
+        if (error) {
+            Alert.alert('Error', 'Failed to create post: ' + error.message);
+            return { error };
+        } else {
+            dispatch({ type: 'CREATE_POST', payload: data });
+            return { error: null };
+        }
+    }, [state.currentUser]);
+
+    const startRumor = useCallback(async (rumor: any) => {
+        if (!state.currentUser) return;
+        const { data, error } = await supabase
+            .from('rumors')
+            .insert([{
+                ...rumor,
+                creator_id: state.currentUser.id,
+                created_at: new Date().toISOString()
+            }])
+            .select()
+            .single();
+
+        if (error) {
+            Alert.alert('Error', 'Failed to start rumor: ' + error.message);
+        } else {
+            dispatch({ type: 'START_RUMOR', payload: data });
+        }
+    }, [state.currentUser]);
+
+    const rsvp = useCallback(async (quest_id: string, status: 'going' | 'interested' | 'cancelled') => {
+        if (!state.currentUser) return;
+
+        const { data, error } = await supabase
+            .from('rsvps')
+            .upsert({
+                user_id: state.currentUser.id,
+                quest_id,
+                status
+            }, { onConflict: 'user_id,quest_id' })
+            .select()
+            .single();
+
+        if (error) {
+            Alert.alert('RSVP Error', error.message);
+        } else {
+            const updatedRsvps = state.rsvps.filter(r => !(r.user_id === state.currentUser?.id && r.quest_id === quest_id));
+            dispatch({ type: 'SET_RSVPS', payload: [...updatedRsvps, data] });
+        }
+    }, [state.currentUser, state.rsvps]);
+
+    const cancelRsvp = useCallback(async (quest_id: string) => {
+        if (!state.currentUser) return;
+
+        const { error } = await supabase
+            .from('rsvps')
+            .delete()
+            .eq('user_id', state.currentUser.id)
+            .eq('quest_id', quest_id);
+
+        if (!error) {
+            dispatch({ type: 'SET_RSVPS', payload: state.rsvps.filter(r => !(r.user_id === state.currentUser?.id && r.quest_id === quest_id)) });
+        }
+    }, [state.currentUser, state.rsvps]);
+
+    const followUser = useCallback(async (following_id: string) => {
+        if (!state.currentUser) return;
+
+        const isFollowing = state.follows.some(f => f.follower_id === state.currentUser?.id && f.following_id === following_id);
+
+        if (isFollowing) {
+            const { error } = await supabase
+                .from('follows')
+                .delete()
+                .eq('follower_id', state.currentUser.id)
+                .eq('following_id', following_id);
+
+            if (!error) {
+                dispatch({ type: 'SET_FOLLOWS', payload: state.follows.filter(f => !(f.follower_id === state.currentUser?.id && f.following_id === following_id)) });
+            }
+        } else {
+            const { data, error } = await supabase
+                .from('follows')
+                .insert([{ follower_id: state.currentUser.id, following_id: following_id }])
+                .select()
+                .single();
+
+            if (!error) {
+                dispatch({ type: 'SET_FOLLOWS', payload: [...state.follows, data] });
+            }
+        }
+    }, [state.currentUser, state.follows]);
+
+    const updateProfile = useCallback(async (profileData: Partial<User>) => {
+        if (!state.currentUser) return;
+        const { error } = await supabase
+            .from('profiles')
+            .update(profileData)
+            .eq('id', state.currentUser.id);
+        if (error) {
+            Alert.alert('Update Error', error.message);
+        } else {
+            dispatch({ type: 'SET_USER', payload: { ...state.currentUser, ...profileData } });
+        }
+    }, [state.currentUser]);
+
+    const getQuestStats = useCallback(
+        (quest_id: string) => state.quests.find(q => q.quest_id === quest_id)?.stats,
+        [state.quests]
     );
 
-    const getCreator = useCallback(
-        (creatorId: string) => state.creators.find((c) => c.id === creatorId),
-        [state.creators]
-    );
-    const getPopupRsvps = useCallback(
-        (popupId: string) => state.rsvps.filter((r) => r.popup_id === popupId),
+    const getQuestRsvps = useCallback(
+        (quest_id: string) => state.rsvps.filter((r) => r.quest_id === quest_id),
         [state.rsvps]
     );
-    const getPopupReviews = useCallback(
-        (popupId: string) => state.reviews.filter((r) => r.popup_id === popupId),
-        [state.reviews]
-    );
-    const getUserRsvp = useCallback(
-        (popupId: string) =>
-            state.rsvps.find(
-                (r) =>
-                    r.user_id === state.currentUser?.id && r.popup_id === popupId
-            ),
-        [state.rsvps, state.currentUser]
-    );
-    const getAvgRating = useCallback(
-        (popupId: string) => {
-            const popReviews = state.reviews.filter((r) => r.popup_id === popupId);
-            if (popReviews.length === 0) return 0;
-            return (
-                popReviews.reduce((sum, r) => sum + r.rating, 0) / popReviews.length
-            );
-        },
-        [state.reviews]
-    );
-    const getTrendingScore = useCallback(
-        (popup: any) => {
-            const rsvpCount = state.rsvps.filter(
-                (r) => r.popup_id === popup.id
-            ).length;
-            const avg = getAvgRating(popup.id);
-            return rsvpCount * (popup.attendance || 1) * (avg || 1);
-        },
-        [state.rsvps, getAvgRating]
-    );
 
-    const markNotificationRead = useCallback(
-        (notificationId: string) => dispatch({ type: 'MARK_NOTIFICATION_READ', payload: notificationId }),
-        []
-    );
+    const resendOtp = useCallback(async (email: string) => {
+        const { error } = await supabase.auth.resend({
+            type: 'signup',
+            email: email,
+        });
+        if (error) Alert.alert('OTP Error', error.message);
+        return { error };
+    }, []);
+
+    const verifyOtp = useCallback(async (email: string, token: string) => {
+        const { error } = await supabase.auth.verifyOtp({
+            email,
+            token,
+            type: 'signup',
+        });
+        if (error) Alert.alert('Verification Error', error.message);
+        return { error };
+    }, []);
 
     const value: AppContextType = {
         ...state,
         login,
+        signup,
         logout,
         selectCampus,
-        createPopup,
+        createQuest,
         createPost,
         startRumor,
-        saveDraft,
-        deleteDraft,
         rsvp,
-        toggleReminder,
         cancelRsvp,
-        addReview,
-        addReport,
-        followCreator,
-        setAttendance,
+        followUser,
         updateProfile,
-        getCreator,
-        getPopupRsvps,
-        getPopupReviews,
-        getUserRsvp,
-        getAvgRating,
-        getTrendingScore,
-        markNotificationRead,
-        hasLaunched: state.hasLaunched,
+        getQuestStats,
+        getQuestRsvps,
         setHasLaunched,
+        resendOtp,
+        verifyOtp,
     };
 
     return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

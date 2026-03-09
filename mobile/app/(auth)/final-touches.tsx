@@ -8,9 +8,8 @@ import { useApp } from '../../context/AppContext';
 
 export default function FinalTouchesScreen() {
     const router = useRouter();
-    const { login, updateProfile } = useApp();
+    const { updateProfile } = useApp();
     const [bio, setBio] = useState('');
-    const [instaHandle, setInstaHandle] = useState('');
     const [image, setImage] = useState<string | null>(null);
 
     const pickImage = async () => {
@@ -32,10 +31,12 @@ export default function FinalTouchesScreen() {
         }
     };
 
-    const handleFinish = () => {
-        // Complete the signup and log in
-        updateProfile({ bio, profile_photo: image, instagram: instaHandle });
-        login('newuser@university.edu', 'password123', 'explorer');
+    const handleFinish = async () => {
+        // Complete the signup by updating the profile
+        await updateProfile({
+            bio,
+            profile_photo_url: image || undefined
+        });
         router.push('/(tabs)');
     };
 
@@ -72,21 +73,6 @@ export default function FinalTouchesScreen() {
                         <Text style={styles.avatarLabel}>UPLOAD PROFILE PHOTO</Text>
                     </View>
 
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>INSTA HANDLE</Text>
-                        <View style={styles.instaInputWrapper}>
-                            <Text style={styles.instaPrefix}>@</Text>
-                            <TextInput
-                                style={styles.instaInput}
-                                placeholder="your.handle"
-                                placeholderTextColor="#4b5563"
-                                value={instaHandle}
-                                onChangeText={setInstaHandle}
-                                autoCapitalize="none"
-                                autoCorrect={false}
-                            />
-                        </View>
-                    </View>
 
                     <View style={styles.inputGroup}>
                         <View style={styles.labelRow}>

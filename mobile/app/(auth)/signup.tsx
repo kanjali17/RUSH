@@ -1,13 +1,17 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, SafeAreaView, Alert } from 'react-native';
+import { StyleSheet, View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, SafeAreaView, Alert, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
 import { RushButton } from '../../components/rush/RushButton';
+import { useApp } from '../../context/AppContext';
 
 export default function SignupScreen() {
     const router = useRouter();
+    const { signup } = useApp();
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
 
     return (
         <SafeAreaView style={styles.container}>
@@ -53,16 +57,44 @@ export default function SignupScreen() {
                         />
                     </View>
 
+                    <View style={styles.inputGroup}>
+                        <Text style={styles.label}>PASSWORD</Text>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="Enter password"
+                            placeholderTextColor="#4b5563"
+                            value={password}
+                            onChangeText={setPassword}
+                            secureTextEntry
+                        />
+                    </View>
+
                     <RushButton
-                        title="SEND VERIFICATION CODE"
-                        onPress={() => {
-                            if (!name.trim() || !email.trim()) {
-                                Alert.alert('Error', 'one or more fields are empty');
+                        title="CREATE ACCOUNT"
+                        onPress={async () => {
+                            const trimmedEmail = email.trim();
+                            const trimmedName = name.trim();
+
+                            if (!trimmedName || !trimmedEmail || !password) {
+                                Alert.alert('Error', 'Please fill in all fields');
                                 return;
                             }
-                            router.push('/(auth)/verify');
+
+                            // Use a more robust regex that allows for subdomains if needed
+                            const utexasRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]*utexas\.edu$/i;
+
+                            if (!utexasRegex.test(trimmedEmail)) {
+                                Alert.alert('Error', 'Please use your official .utexas.edu email address.');
+                                return;
+                            }
+
+                            router.push({
+                                pathname: '/(auth)/vibe',
+                                params: { name: trimmedName, email: trimmedEmail, password }
+                            } as any);
                         }}
                         style={styles.continueBtn}
+                        loading={isLoading}
                     />
 
                     <TouchableOpacity

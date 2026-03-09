@@ -11,9 +11,9 @@ const FILTERS = ['All Feed'];
 export default function FollowingScreen() {
     const insets = useSafeAreaInsets();
     const router = useRouter();
-    const { popups, creators } = useApp();
+    const { quests, profiles } = useApp();
 
-    const feedItems = popups.filter(p => p.status === 'upcoming' || p.status === 'active');
+    const feedItems = quests.filter((p: any) => p.is_live);
 
     const renderHeader = () => (
         <View style={styles.header}>
@@ -55,12 +55,12 @@ export default function FollowingScreen() {
     );
 
     const renderItem = ({ item }: { item: any }) => {
-        const creator = creators.find(c => c.id === item.creator_id);
+        const creator = profiles.find(c => c.id === item.creator_id);
         return (
             <TouchableOpacity
                 style={styles.feedCard}
                 activeOpacity={0.9}
-                onPress={() => router.push(`/popup/${item.id}`)}
+                onPress={() => router.push(`/popup/${item.quest_id}`)}
             >
                 <View style={styles.imagePlaceholder}>
                     <Flame size={48} color="rgba(255,255,255,0.1)" />
@@ -74,7 +74,7 @@ export default function FollowingScreen() {
                 <View style={styles.cardContent}>
                     <Text style={styles.cardTitle}>{item.title}</Text>
                     <TouchableOpacity onPress={() => router.push(`/creator/${item.creator_id}` as any)}>
-                        <Text style={styles.cardSubtitle}>by {creator?.name} • {item.location_name}</Text>
+                        <Text style={styles.cardSubtitle}>by {creator?.full_name} • {item.location_name}</Text>
                     </TouchableOpacity>
                     <Text style={styles.cardDescription} numberOfLines={2}>
                         {item.description || "Fresh ingredients and amazing vibes guaranteed."}
@@ -100,7 +100,7 @@ export default function FollowingScreen() {
         <View style={[styles.container, { paddingTop: insets.top }]}>
             <FlatList
                 data={feedItems}
-                keyExtractor={(item) => item.id}
+                keyExtractor={(item) => item.quest_id}
                 renderItem={renderItem}
                 ListHeaderComponent={renderHeader}
                 contentContainerStyle={styles.listContent}

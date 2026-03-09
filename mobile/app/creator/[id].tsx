@@ -9,10 +9,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 export default function CreatorProfileScreen() {
     const router = useRouter();
     const { id } = useLocalSearchParams();
-    const { getCreator, popups } = useApp();
-
-    const creator = getCreator(id as string);
-    const creatorPopups = popups.filter(p => p.creator_id === creator?.id);
+    const { quests, profiles } = useApp();
+    const creator = profiles.find(u => u.id === id);
+    const creatorQuests = quests.filter(q => q.creator_id === creator?.id);
 
     if (!creator) return null;
 
@@ -30,15 +29,12 @@ export default function CreatorProfileScreen() {
 
                 <View style={styles.content}>
                     <View style={styles.avatarBox}>
-                        <Image source={{ uri: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=200' }} style={styles.avatar} />
-                        <View style={styles.statusBadge}>
-                            <Flame size={12} color="#000" fill="#000" />
-                        </View>
+                        <Image source={{ uri: creator.profile_photo_url || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=200' }} style={styles.avatar} />
                     </View>
 
                     <View style={styles.infoSection}>
-                        <Text style={styles.name}>{creator.name}</Text>
-                        <Text style={styles.bio}>{creator.bio}</Text>
+                        <Text style={styles.name}>{creator.full_name}</Text>
+                        <Text style={styles.bio}>{creator.bio || 'New seeker joining the RUSH community.'}</Text>
 
                         <View style={styles.socialRows}>
                             {creator.email && (
@@ -47,22 +43,16 @@ export default function CreatorProfileScreen() {
                                     <Text style={styles.socialText}>{creator.email}</Text>
                                 </View>
                             )}
-                            {creator.instagram_handle && (
-                                <View style={styles.socialRow}>
-                                    <Instagram size={16} color="rgba(255,255,255,0.4)" />
-                                    <Text style={styles.socialText}>{creator.instagram_handle}</Text>
-                                </View>
-                            )}
                         </View>
 
                         <View style={styles.statsRow}>
                             <View style={styles.stat}>
-                                <Text style={styles.statVal}>{creator.followers.length}</Text>
+                                <Text style={styles.statVal}>{creator.followers_count}</Text>
                                 <Text style={styles.statLabel}>FOLLOWERS</Text>
                             </View>
                             <View style={styles.statDivider} />
                             <View style={styles.stat}>
-                                <Text style={styles.statVal}>{creatorPopups.length}</Text>
+                                <Text style={styles.statVal}>{creatorQuests.length}</Text>
                                 <Text style={styles.statLabel}>DROPS</Text>
                             </View>
                         </View>
@@ -70,18 +60,18 @@ export default function CreatorProfileScreen() {
 
                     <View style={styles.popupsSection}>
                         <Text style={styles.sectionLabel}>LATEST DROPS</Text>
-                        {creatorPopups.map((popup) => (
+                        {creatorQuests.map((quest) => (
                             <TouchableOpacity
-                                key={popup.id}
+                                key={quest.quest_id}
                                 style={styles.popupCard}
-                                onPress={() => router.push(`/popup/${popup.id}`)}
+                                onPress={() => router.push(`/popup/${quest.quest_id}`)}
                             >
-                                <Image source={{ uri: popup.image_url || 'https://images.unsplash.com/photo-1551024601-bec78aea704b?auto=format&fit=crop&q=80&w=400' }} style={styles.popupImage} />
+                                <Image source={{ uri: quest.flyer_image_url || 'https://images.unsplash.com/photo-1551024601-bec78aea704b?auto=format&fit=crop&q=80&w=400' }} style={styles.popupImage} />
                                 <View style={styles.popupInfo}>
-                                    <Text style={styles.popupTitle}>{popup.title}</Text>
+                                    <Text style={styles.popupTitle}>{quest.title}</Text>
                                     <View style={styles.popupLoc}>
                                         <MapPin size={10} color="#ff6b35" fill="#ff6b35" />
-                                        <Text style={styles.popupLocText}>{popup.location_name}</Text>
+                                        <Text style={styles.popupLocText}>{quest.location_name}</Text>
                                     </View>
                                 </View>
                             </TouchableOpacity>

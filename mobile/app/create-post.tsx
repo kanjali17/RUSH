@@ -34,7 +34,7 @@ export default function CreatePostScreen() {
         }
         setIsPosting(true);
         try {
-            createPost({
+            await createPost({
                 image_url: image,
                 caption,
             });

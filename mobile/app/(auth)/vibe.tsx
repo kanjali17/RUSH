@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, ScrollView, SafeAreaView, TextInput } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, ChevronRight, MapPin } from 'lucide-react-native';
 import { RushButton } from '../../components/rush/RushButton';
+import { useApp } from '../../context/AppContext';
 
 const VIBES = [
     'LATE NIGHT', 'VEGAN', 'SPICY', 'CAFFEINE', 'BUDGET', 'HALAL', 'GLUTEN FREE', 'DESSERT'
@@ -10,15 +11,38 @@ const VIBES = [
 
 export default function VibeCheckScreen() {
     const router = useRouter();
+    const params = useLocalSearchParams<{ name: string; email: string; password: string }>();
+    const { signup } = useApp();
     const [selectedVibes, setSelectedVibes] = useState<string[]>([]);
     const [campus, setCampus] = useState('UT Austin');
     const [showCampusDropdown, setShowCampusDropdown] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
 
     const toggleVibe = (vibe: string) => {
         if (selectedVibes.includes(vibe)) {
             setSelectedVibes(selectedVibes.filter(v => v !== vibe));
         } else {
             setSelectedVibes([...selectedVibes, vibe]);
+        }
+    };
+
+    const handleContinue = async () => {
+        const { name, email, password } = params;
+
+        if (!name || !email || !password) {
+            // If params are missing, user might have bypassed or refreshed
+            // Fallback navigate to final touches if we can't signup
+            router.push('/(auth)/final-touches');
+            return;
+        }
+
+        setIsLoading(true);
+        // Hardcoded UT Austin campus_id matching seedData for this phase
+        const { error } = await signup(email, password, name, 'ut-austin-id');
+        setIsLoading(false);
+
+        if (!error) {
+            router.push('/(auth)/final-touches');
         }
     };
 
@@ -88,7 +112,8 @@ export default function VibeCheckScreen() {
                     </View>
                     <RushButton
                         title="CONTINUE"
-                        onPress={() => router.push('/(auth)/final-touches')}
+                        onPress={handleContinue}
+                        loading={isLoading}
                         style={styles.continueBtn}
                         icon={<ChevronRight size={18} color="#fff" />}
                     />

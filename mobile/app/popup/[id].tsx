@@ -3,7 +3,7 @@ import { StyleSheet, View, Text, ScrollView, TouchableOpacity, Image, Linking, P
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useApp } from '../../context/AppContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, Clock, MapPin, Users, Heart, Share2, ChevronRight, Zap, ArrowRight } from 'lucide-react-native';
+import { X, Clock, MapPin, Users, Heart, Share2, ChevronRight, Zap, ArrowRight, Flame } from 'lucide-react-native';
 import { RushButton } from '../../components/rush/RushButton';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MotiView } from 'moti';
@@ -14,19 +14,19 @@ export default function PopupDetailScreen() {
     const { id } = useLocalSearchParams();
     const router = useRouter();
     const insets = useSafeAreaInsets();
-    const { popups, creators, rsvp, getUserRsvp, followCreator, currentUser } = useApp();
+    const { quests, profiles, rsvp, followUser, currentUser, rsvps, posts } = useApp();
 
-    const popup = popups.find(p => p.id === id);
-    const creator = popup ? creators.find(c => c.id === popup.creator_id) : null;
-    const existingRsvp = popup ? getUserRsvp(popup.id) : null;
-    const isFollowing = creator && currentUser?.following.includes(creator.id);
+    const quest = quests.find(q => q.quest_id === id);
+    const creator = quest ? profiles.find(u => u.id === quest.creator_id) : null;
+    const existingRsvp = quest ? rsvps.find(r => r.user_id === currentUser?.id && r.quest_id === quest.quest_id) : null;
+    const isFollowing = creator && currentUser?.id && profiles.find(u => u.id === currentUser.id)?.following_count; // Simplified for now, or use follows table
 
-    if (!popup) return null;
+    if (!quest) return null;
 
     const openInMaps = () => {
         const scheme = Platform.select({ ios: 'maps:0,0?q=', android: 'geo:0,0?q=' });
-        const latLng = `${popup.lat},${popup.lng}`;
-        const label = popup.location_name;
+        const latLng = `${quest.location?.lat},${quest.location?.lng}`;
+        const label = quest.location_name;
         const url = Platform.select({
             ios: `${scheme}${label}@${latLng}`,
             android: `${scheme}${latLng}(${label})`
@@ -45,7 +45,7 @@ export default function PopupDetailScreen() {
                         style={styles.heroCard}
                     >
                         <Image
-                            source={{ uri: popup.image_url || 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&q=80&w=800' }}
+                            source={{ uri: quest.flyer_image_url || 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&q=80&w=800' }}
                             style={styles.heroImage}
                         />
                         <LinearGradient
@@ -61,10 +61,12 @@ export default function PopupDetailScreen() {
                         </TouchableOpacity>
 
                         <View style={styles.heroContent}>
-                            <View style={styles.activeNowBadge}>
-                                <Text style={styles.activeNowText}>ACTIVE NOW</Text>
-                            </View>
-                            <Text style={styles.heroTitle}>{popup.title.toUpperCase()}</Text>
+                            {quest.is_live && (
+                                <View style={styles.activeNowBadge}>
+                                    <Text style={styles.activeNowText}>ACTIVE NOW</Text>
+                                </View>
+                            )}
+                            <Text style={styles.heroTitle}>{quest.title.toUpperCase()}</Text>
                         </View>
                     </MotiView>
                 </View>
@@ -78,14 +80,15 @@ export default function PopupDetailScreen() {
                     >
                         <TouchableOpacity
                             style={styles.creatorContent}
-                            onPress={() => router.push(`/creator/${popup.creator_id}` as any)}
+                            onPress={() => router.push(`/creator/${quest.creator_id}` as any)}
                         >
                             <View style={styles.creatorAvatar}>
-                                <Text style={styles.avatarEmoji}>{creator?.avatar || '👨‍🍳'}</Text>
+                                <Text style={styles.avatarEmoji}>{creator?.profile_photo_url ? '' : '👨‍🍳'}</Text>
+                                {creator?.profile_photo_url && <Image source={{ uri: creator.profile_photo_url }} style={styles.creatorImage} />}
                             </View>
                             <View>
                                 <Text style={styles.curatedByLabel}>CURATED BY</Text>
-                                <Text style={styles.creatorName}>{creator?.name}</Text>
+                                <Text style={styles.creatorName}>{creator?.full_name}</Text>
                             </View>
                         </TouchableOpacity>
                         <ChevronRight size={16} color="rgba(255,255,255,0.2)" />
@@ -98,75 +101,75 @@ export default function PopupDetailScreen() {
 
                     <View style={styles.detailsGrid}>
                         {/* Menu Selection */}
-                        <View style={styles.menuColumn}>
-                            <Text style={styles.columnLabel}>MENU SELECTION</Text>
-                            {popup.menu?.map(item => (
-                                <View key={item.id} style={styles.menuItem}>
+                        <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            contentContainerStyle={styles.menuScroll}
+                        >
+                            {quest.menu_items?.map((item: any) => (
+                                <View key={item.menu_item_id} style={styles.menuItem}>
                                     <Text style={styles.menuItemName}>{item.name}</Text>
-                                    <View style={styles.menuDash} />
-                                    <Text style={styles.menuItemDesc}>
-                                        {item.description || "Wild forest mushrooms, essence of white truffle oil, hand-picked herbs."}
-                                    </Text>
+                                    <Text style={styles.menuItemPrice}>${item.price}</Text>
                                 </View>
                             ))}
+                        </ScrollView>
+                    </View>
+
+                    <QuestStats quest={quest} />
+
+                    <View style={styles.infoSection}>
+                        <View style={styles.infoRow}>
+                            <Clock size={18} color="rgba(255,255,255,0.4)" />
+                            <Text style={styles.infoText}>{new Date(quest.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(quest.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
+                        </View>
+                        <TouchableOpacity style={styles.infoRow} onPress={openInMaps}>
+                            <MapPin size={18} color="rgba(255,255,255,0.4)" />
+                            <Text style={[styles.infoText, { color: '#ff6b35' }]}>{quest.location_name}</Text>
+                        </TouchableOpacity>
+                        <View style={styles.infoRow}>
+                            <Users size={18} color="rgba(255,255,255,0.4)" />
+                            <Text style={styles.infoText}>{quest.stats?.rsvp_count || 0} RSVPs • {quest.capacity_limit ? `Limit ${quest.capacity_limit}` : 'Open Capacity'}</Text>
+                        </View>
+                    </View>
+
+                    <View style={styles.infoColumn}>
+                        <View style={styles.infoGroup}>
+                            <Text style={styles.columnLabel}>WHERE</Text>
+                            <Text style={styles.infoValue}>{quest.location_name}</Text>
+                            <TouchableOpacity style={styles.miniMap} onPress={openInMaps}>
+                                <Image
+                                    source={{ uri: `https://api.mapbox.com/styles/v1/mapbox/dark-v10/static/-97.7341,30.2849,15,0/100x60?access_token=${process.env.EXPO_PUBLIC_MAPBOX_TOKEN || 'PLACEHOLDER'}` }}
+                                    style={styles.mapImage}
+                                />
+                                <View style={styles.mapMarker}>
+                                    <MapPin size={12} color="#ff6b35" />
+                                </View>
+                            </TouchableOpacity>
                         </View>
 
-                        {/* Right Info Column */}
-                        <View style={styles.infoColumn}>
-                            <View style={styles.infoGroup}>
-                                <Text style={styles.columnLabel}>WHEN</Text>
-                                <Text style={styles.infoValue}>12:30 PM — 2:00 PM</Text>
-                            </View>
-
-                            <View style={styles.infoGroup}>
-                                <Text style={styles.columnLabel}>WHERE</Text>
-                                <Text style={styles.infoValue}>{popup.location_name}</Text>
-                                <TouchableOpacity style={styles.miniMap} onPress={openInMaps}>
-                                    <Image
-                                        source={{ uri: `https://api.mapbox.com/styles/v1/mapbox/dark-v10/static/-97.7341,30.2849,15,0/100x60?access_token=${process.env.EXPO_PUBLIC_MAPBOX_TOKEN || 'PLACEHOLDER'}` }}
-                                        style={styles.mapImage}
-                                    />
-                                    <View style={styles.mapMarker}>
-                                        <MapPin size={12} color="#ff6b35" />
-                                    </View>
-                                </TouchableOpacity>
-                            </View>
-
-                            <View style={styles.infoGroup}>
-                                <Text style={styles.columnLabel}>CAPACITY</Text>
-                                <Text style={styles.capacityValue}>
-                                    <Text style={{ color: '#ff6b35', fontWeight: '900' }}>{popup.attendance}</Text> / {popup.capacity || 60} JOINED
-                                </Text>
-                                <View style={styles.capacityTrack}>
-                                    <MotiView
-                                        from={{ width: 0 }}
-                                        animate={{ width: `${(popup.attendance / (popup.capacity || 60)) * 100}%` }}
-                                        transition={{ type: 'timing', duration: 1000 }}
-                                        style={styles.capacityFill}
-                                    />
-                                </View>
+                        <View style={styles.infoGroup}>
+                            <Text style={styles.columnLabel}>CAPACITY</Text>
+                            <Text style={styles.capacityValue}>
+                                <Text style={{ color: '#ff6b35', fontWeight: '900' }}>{quest.stats?.rsvp_count}</Text> / {quest.capacity_limit || 60} JOINED
+                            </Text>
+                            <View style={styles.capacityTrack}>
+                                <MotiView
+                                    from={{ width: 0 }}
+                                    animate={{ width: `${((quest.stats?.rsvp_count || 0) / (quest.capacity_limit || 60)) * 100}%` }}
+                                    transition={{ type: 'timing', duration: 1000 }}
+                                    style={styles.capacityFill}
+                                />
                             </View>
                         </View>
                     </View>
 
                     {/* RSVP Action */}
                     <View style={styles.rsvpSection}>
-                        <TouchableOpacity
-                            style={styles.rsvpBtn}
-                            onPress={() => rsvp(popup.id, 'going')}
-                        >
-                            <LinearGradient
-                                colors={['#ff6b35', '#ff9f42']}
-                                style={styles.rsvpGradient}
-                                start={{ x: 0, y: 0 }}
-                                end={{ x: 1, y: 1 }}
-                            >
-                                <Text style={styles.rsvpBtnText}>
-                                    {existingRsvp ? "RSVP'D TO GATHERING" : "RSVP TO THE GATHERING"}
-                                </Text>
-                                <ArrowRight size={20} color="#000" strokeWidth={3} />
-                            </LinearGradient>
-                        </TouchableOpacity>
+                        <RushButton
+                            title={existingRsvp ? (existingRsvp.status === 'going' ? 'YOU ARE GOING' : 'INTERESTED') : 'RSVP FOR SIDEQUEST'}
+                            onPress={() => rsvp(quest.quest_id, 'going')}
+                            variant={existingRsvp?.status === 'going' ? 'secondary' : 'primary'}
+                        />
 
                         <Text style={styles.communityHeader}>COMMUNITY MEMBERS JOINING</Text>
 
@@ -182,6 +185,24 @@ export default function PopupDetailScreen() {
 
                 <View style={{ height: insets.bottom + 40 }} />
             </ScrollView>
+        </View>
+    );
+}
+
+function QuestStats({ quest }: { quest: any }) {
+    return (
+        <View style={styles.statsContainer}>
+            <View style={styles.statBox}>
+                <Flame size={16} color="#ff6b35" fill="#ff6b35" />
+                <Text style={styles.statValue}>{quest.stats?.engagement_score.toFixed(0) || 0}</Text>
+                <Text style={styles.statLabel}>VIBE</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statBox}>
+                <Zap size={16} color="#d640ff" fill="#d640ff" />
+                <Text style={styles.statValue}>{quest.stats?.rumor_count || 0}</Text>
+                <Text style={styles.statLabel}>RUMORS</Text>
+            </View>
         </View>
     );
 }
@@ -271,14 +292,18 @@ const styles = StyleSheet.create({
         gap: 10,
     },
     creatorAvatar: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        backgroundColor: '#1a1a1a',
-        justifyContent: 'center',
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: 'rgba(255,255,255,0.05)',
         alignItems: 'center',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.1)',
+        justifyContent: 'center',
+        marginRight: 12,
+        overflow: 'hidden',
+    },
+    creatorImage: {
+        width: '100%',
+        height: '100%',
     },
     curatedByLabel: {
         color: 'rgba(255,255,255,0.3)',
@@ -301,9 +326,40 @@ const styles = StyleSheet.create({
         fontWeight: '500',
         marginBottom: 40,
     },
+    menuScroll: {
+        paddingVertical: 10,
+    },
+    menuItemName: {
+        color: '#f1f1f5',
+        fontSize: 16,
+        fontFamily: 'Outfit-Medium',
+    },
+    menuItemPrice: {
+        color: '#ff6b35',
+        fontSize: 16,
+        fontFamily: 'Outfit-Bold',
+    },
+    infoSection: {
+        marginTop: 20,
+        gap: 12,
+        backgroundColor: 'rgba(255,255,255,0.03)',
+        borderRadius: 16,
+        padding: 16,
+    },
+    infoRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    infoText: {
+        color: '#f1f1f5',
+        fontSize: 14,
+        fontFamily: 'Outfit-Regular',
+    },
     detailsGrid: {
         flexDirection: 'row',
         gap: 40,
+        marginTop: 20,
     },
     menuColumn: {
         flex: 1,
@@ -316,14 +372,15 @@ const styles = StyleSheet.create({
         marginBottom: 24,
     },
     menuItem: {
-        marginBottom: 40,
-    },
-    menuItemName: {
-        color: '#fff',
-        fontSize: 24,
-        fontWeight: '900',
-        marginBottom: 4,
-        fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+        backgroundColor: 'rgba(255,255,255,0.05)',
+        padding: 16,
+        borderRadius: 12,
+        marginRight: 12,
+        minWidth: 140,
+        justifyContent: 'space-between',
+        flexDirection: 'row',
+        gap: 15,
+        alignItems: 'center',
     },
     menuDash: {
         width: 24,
@@ -444,8 +501,38 @@ const styles = StyleSheet.create({
         fontWeight: '700',
     },
     attendeeCount: {
-        color: '#fff',
-        fontSize: 8,
+        color: '#f1f1f5',
+        fontSize: 10,
         fontWeight: '700',
+    },
+    statsContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 30,
+        backgroundColor: 'rgba(255,255,255,0.03)',
+        padding: 20,
+        borderRadius: 20,
+        marginTop: 30,
+    },
+    statBox: {
+        alignItems: 'center',
+        gap: 4,
+    },
+    statValue: {
+        color: '#f1f1f5',
+        fontSize: 18,
+        fontWeight: '900',
+    },
+    statLabel: {
+        color: 'rgba(255,255,255,0.3)',
+        fontSize: 9,
+        fontWeight: '800',
+        letterSpacing: 1,
+    },
+    statDivider: {
+        width: 1,
+        height: 24,
+        backgroundColor: 'rgba(255,255,255,0.1)',
     },
 });

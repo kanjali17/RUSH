@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { StyleSheet, View, Text, FlatList, TouchableOpacity, ScrollView, Image, SafeAreaView } from 'react-native';
-import { useApp, Popup } from '../../context/AppContext';
+import { useApp } from '../../context/AppContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ticket, Calendar, MapPin, Bell, Navigation, ChevronRight } from 'lucide-react-native';
 import { RushCard } from '../../components/rush/RushCard';
@@ -10,17 +10,17 @@ import { useRouter } from 'expo-router';
 export default function RSVPsScreen() {
     const insets = useSafeAreaInsets();
     const router = useRouter();
-    const { rsvps, popups, currentUser, creators } = useApp();
+    const { rsvps, quests, currentUser, profiles } = useApp();
     const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
 
-    const userRsvps = rsvps.filter(r => {
-        const popup = popups.find(p => p.id === r.popup_id);
+    const userRsvps = rsvps.filter((r: any) => {
+        const quest = quests.find((p: any) => p.quest_id === r.quest_id);
         const isUser = r.user_id === currentUser?.id;
         if (activeTab === 'upcoming') {
-            return isUser && (popup?.status === 'active' || popup?.status === 'upcoming');
+            return isUser && quest?.is_live;
         }
         if (activeTab === 'past') {
-            return isUser && popup?.status === 'past';
+            return isUser && !quest?.is_live;
         }
         return false;
     });
@@ -68,8 +68,8 @@ export default function RSVPsScreen() {
     );
 
     const renderItem = ({ item }: { item: any }) => {
-        const popup = popups.find(p => p.id === item.popup_id);
-        if (!popup) return null;
+        const quest = quests.find((p: any) => p.quest_id === item.quest_id);
+        if (!quest) return null;
 
         return (
             <MotiView
@@ -80,7 +80,7 @@ export default function RSVPsScreen() {
                 <View style={styles.cardMain}>
                     <View style={styles.cardImage}>
                         <Image
-                            source={{ uri: popup.image_url || 'https://images.unsplash.com/photo-1551024601-bec78aea704b?auto=format&fit=crop&q=80&w=400' }}
+                            source={{ uri: quest.flyer_image_url || 'https://images.unsplash.com/photo-1551024601-bec78aea704b?auto=format&fit=crop&q=80&w=400' }}
                             style={StyleSheet.absoluteFill}
                         />
                         <View style={styles.statusLabel}>
@@ -90,16 +90,16 @@ export default function RSVPsScreen() {
 
                     <View style={styles.cardContent}>
                         <View style={styles.cardHeaderRow}>
-                            <Text style={styles.cardTitle}>{popup.title}</Text>
-                            <TouchableOpacity onPress={() => router.push(`/creator/${popup.creator_id}` as any)}>
-                                <Text style={styles.creatorLink}>by {creators.find(c => c.id === popup.creator_id)?.name || 'Creator'}</Text>
+                            <Text style={styles.cardTitle}>{quest.title}</Text>
+                            <TouchableOpacity onPress={() => router.push(`/creator/${quest.creator_id}` as any)}>
+                                <Text style={styles.creatorLink}>by {profiles.find(c => c.id === quest.creator_id)?.full_name || 'Creator'}</Text>
                             </TouchableOpacity>
                         </View>
                         <View style={styles.locationInfo}>
                             <MapPin size={12} color="#ff6b35" fill="#ff6b35" />
-                            <Text style={styles.locationText}>{popup.location_name}</Text>
+                            <Text style={styles.locationText}>{quest.location_name}</Text>
                         </View>
-                        <Text style={styles.timeText}>{popup.time_range || '10:30 PM • Booth #04'}</Text>
+                        <Text style={styles.timeText}>{quest.start_time || '10:30 PM • Booth #04'}</Text>
 
                         <View style={styles.orderSummary}>
                             <Text style={styles.summaryLabel}>PRE-ORDER SUMMARY</Text>
@@ -111,7 +111,7 @@ export default function RSVPsScreen() {
                     </View>
                 </View>
 
-                <TouchableOpacity style={styles.navigateBtn}>
+                <TouchableOpacity style={styles.navigateBtn} onPress={() => router.push(`/popup/${quest.quest_id}`)}>
                     <Navigation size={18} color="#000" fill="#000" />
                     <Text style={styles.navigateText}>Navigate</Text>
                 </TouchableOpacity>
@@ -128,7 +128,7 @@ export default function RSVPsScreen() {
         <SafeAreaView style={styles.container}>
             <FlatList
                 data={userRsvps}
-                keyExtractor={(item) => item.id}
+                keyExtractor={(item) => item.rsvp_id}
                 renderItem={renderItem}
                 ListHeaderComponent={renderHeader}
                 ListEmptyComponent={
